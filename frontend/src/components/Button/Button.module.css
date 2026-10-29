@@ -1,0 +1,21 @@
+.button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  
+  /* Варианты оформления: переключаются пропом variant */
+  .primary { background: var(--color-primary, #3b82f6); color: #fff; }
+  .secondary { background: #eee; color: #222; }
+  
+  /* Размеры: переключаются пропом size */
+  .sm { font-size: 14px; }
+  .md { font-size: 16px; }
+  .lg { font-size: 18px; }
+  
+  /* Страховка, когда класс задан без нативного атрибута disabled */
+  .disabled {
+    opacity: .6;
+    pointer-events: none;
+  }

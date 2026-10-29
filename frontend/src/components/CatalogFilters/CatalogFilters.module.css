@@ -1,0 +1,28 @@
+/* Контейнер фильтров */
+/* Контейнер фильтров с внутренними отступами и тенью */
+.filtersContainer {
+    background-color: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #eef0f3;
+    padding: 24px; /* Вернули нормальный отступ внутри плашки */
+    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.06); /* Вернули красивую тень */
+  }
+  
+  
+  /* Ограничиваем ширину поля поиска, чтобы оставалось место кнопкам */
+  .searchField {
+    width: 500px !important;
+  }
+  
+  /* Фиксируем ширину выпадающего списка статуса */
+  .statusField {
+    width: 200px !important;
+  }
+  
+  /* Фиксируем ширину кнопки, чтобы текст не сжимался */
+  .filterButton {
+    width: 140px !important;
+    min-width: 140px !important;
+    white-space: nowrap;
+  }
+  

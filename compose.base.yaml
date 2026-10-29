@@ -1,0 +1,51 @@
+# Базовые якоря
+x-env-file: &env_file [.env]
+
+x-db-env: &db_env
+  POSTGRES_DB: ${POSTGRES_DB}
+  POSTGRES_USER: ${POSTGRES_USER}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+x-fastify-env: &fastify_env
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+  PORT: "3000"
+
+x-db-healthy: &db_healthy
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:17-alpine
+    env_file: *env_file
+    environment: *db_env
+    volumes: [ "db_data:/var/lib/postgresql/data" ]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    <<: *db_healthy
+    env_file: *env_file
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      # target задаётся в override-файлах (dev/prod)
+    environment: *fastify_env
+    expose: ["3000"]
+
+  scalar:
+    # для учебного стенда оставляем :latest — на проде лучше пинить конкретный SHA-дайджест
+    image: scalarapi/api-reference:latest
+    environment:
+      # URL относительный, редирект идёт через тот же NGINX
+      API_REFERENCE_CONFIG: >
+        {"layout":"modern","theme":"purple",
+         "sources":[{"name":"API","url":"/openapi.json"}]}
+    expose: ["8080"]
+
+volumes:
+  db_data:

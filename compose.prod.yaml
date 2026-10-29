@@ -1,0 +1,17 @@
+services:
+  # Фронтенд сам отдаёт статику через свой NGINX и проксирует /api и /docs
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: prod
+    depends_on:
+      - backend
+      - scalar
+    ports: ["80:80"]
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: prod
