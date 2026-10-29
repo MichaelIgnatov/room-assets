@@ -1,6 +1,9 @@
-node_modules
+node_modules/
 dist
 .env
 .git
 npm-debug.log
 /src/generated/prisma
+.vscode/
+.claude/
+.windsurf/
