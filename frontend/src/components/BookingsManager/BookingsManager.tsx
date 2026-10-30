@@ -34,7 +34,6 @@ export function BookingsManager() {
   const [filterDate, setFilterDate] = useState("");
 
   const [page, setPage] = useState(0);
-  // Выставили дефолтное значение 10 строк, чтобы заполнить высоту
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const [room, setRoom] = useState("");
@@ -89,8 +88,7 @@ export function BookingsManager() {
   return (
     <Box className={styles.bookingsContainer}>
       
-      <Box className={styles.topPanel} sx={{ bgcolor: "background.paper", color: "text.primary", borderColor: "divider" }}>
-        {/* Жестко зафиксировали выравнивание текста по левому краю */}
+      <Box className={styles.topPanel} sx={{ bgcolor: "background.paper", color: "text.primary", border: 1, borderColor: "divider", boxShadow: 1 }}>
         <Typography 
           variant="h6" 
           sx={{ fontWeight: 700, color: "text.primary", textAlign: "left" }}
@@ -140,11 +138,12 @@ export function BookingsManager() {
               setPage(0);
             }} 
             sx={{ 
-              border: "1px solid #eef0f3", 
+              border: 1,
+              borderColor: "divider",
               borderRadius: 1.5, 
               height: 40, 
               width: 40, 
-              bgcolor: "#fafafa",
+              bgcolor: "action.hover",
               flexShrink: 0
             }}
           >
@@ -165,11 +164,9 @@ export function BookingsManager() {
       </Box>
 
       <Paper elevation={2} sx={{ borderRadius: 2, overflow: "hidden" }}>
-        {/* Убрали size="small", чтобы вернуть строкам нормальную высоту */}
         <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: "#fafafa" }}>
-              {/* Вернули py: 2 для красивых просторных отступов */}
+            <TableRow sx={{ bgcolor: "action.hover" }}>
               <TableCell width={120} sx={{ py: 2, fontWeight: 600 }}>Ауд.</TableCell>
               <TableCell sx={{ py: 2, fontWeight: 600 }}>Ресурс</TableCell>
               <TableCell width={160} sx={{ py: 2, fontWeight: 600 }}>Дата</TableCell>
@@ -220,7 +217,6 @@ export function BookingsManager() {
           </TableBody>
         </Table>
 
-        {/* Вернули стандартный вид пагинации справа */}
         <TablePagination
           rowsPerPageOptions={[10, 25]}
           component="div"
@@ -238,7 +234,7 @@ export function BookingsManager() {
       </Paper>
 
       <Modal open={openModal} onClose={() => setOpenModal(false)}>
-        <Paper className={styles.modalPaper} sx={{ bgcolor: "background.paper", color: "text.primary", borderColor: "divider" }}>
+        <Paper className={styles.modalPaper} sx={{ bgcolor: "background.paper", color: "text.primary", border: 1, borderColor: "divider", boxShadow: 8 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             Новое бронирование
           </Typography>

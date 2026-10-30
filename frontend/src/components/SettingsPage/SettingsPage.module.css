@@ -1,46 +1,43 @@
 .settingsContainer {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
-  
-  /* Белая подложка для блоков настроек */
-  .cardBlock {
-    border-radius: 8px;
-    border: 1px solid #eef0f3;
-    padding: 24px;
-    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.04);
-  }
-  
-  /* Строка профиля: аватар + текст */
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Белая подложка для блоков настроек */
+.cardBlock {
+  border-radius: 8px;
+  padding: 24px;
+}
+
+/* Строка профиля: аватар + текст */
+.profileRow {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+/* Принудительное выравнивание текста по левому краю */
+.profileInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left !important;
+}
+
+/* Сетка для кнопок выбора темы */
+.themeGroup {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (max-width: 600px) {
   .profileRow {
-    display: flex;
-    gap: 24px;
-    align-items: center;
-  }
-  
-  /* Принудительное выравнивание текста по левому краю */
-  .profileInfo {
-    display: flex;
     flex-direction: column;
-    gap: 4px;
-    text-align: left !important;
+    text-align: center;
   }
-  
-  /* Сетка для кнопок выбора темы */
-  .themeGroup {
-    display: flex;
-    gap: 12px;
-    margin-top: 12px;
+  .profileInfo {
+    text-align: center !important;
   }
-  
-  @media (max-width: 600px) {
-    .profileRow {
-      flex-direction: column;
-      text-align: center;
-    }
-    .profileInfo {
-      text-align: center !important;
-    }
-  }
-  
+}

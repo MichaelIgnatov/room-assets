@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { createTheme, ThemeProvider as MuiThemeProvider, CssBaseline } from "@mui/material";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createTheme, ThemeProvider as MuiThemeProvider, CssBaseline, GlobalStyles } from "@mui/material";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -8,85 +8,83 @@ interface ThemeContextType {
   setThemeMode: (mode: ThemeMode) => void;
 }
 
+const STORAGE_KEY = "theme_mode";
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+const PRIMARY_LIGHT = "#1d4ed8";
+const PRIMARY_DARK = "#aa3bff";
+
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Читаем сохраненную тему из localStorage, чтобы настройки не слетали при перезагрузке
-  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
-    return (localStorage.getItem("theme_mode") as ThemeMode) || "system";
-  });
+function isThemeMode(value: unknown): value is ThemeMode {
+  return value === "light" || value === "dark" || value === "system";
+}
 
-  const [isSystemDark, setIsSystemDark] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches;
-    }
-    return false;
-  });
+function readStoredMode(): ThemeMode {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (isThemeMode(raw)) return raw;
+  } catch {
+  }
+  return "system";
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredMode);
+  const [isSystemDark, setIsSystemDark] = useState<boolean>(() => window.matchMedia(DARK_QUERY).matches);
 
   useEffect(() => {
-    localStorage.setItem("theme_mode", themeMode);
+    try {
+      localStorage.setItem(STORAGE_KEY, themeMode);
+    } catch {
+    }
   }, [themeMode]);
 
-  // Слушаем изменение системной темы (если пользователь переключил тему в Windows/macOS)
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = (e: MediaQueryListEvent) => {
-      setIsSystemDark(e.matches);
-    };
+    const mediaQuery = window.matchMedia(DARK_QUERY);
+    const handleChange = (e: MediaQueryListEvent) => setIsSystemDark(e.matches);
 
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
-  const setThemeMode = (mode: ThemeMode) => {
-    setThemeModeState(mode);
-  };
-
-  // Определяем, какой режим сейчас активен
   const isDark = themeMode === "dark" || (themeMode === "system" && isSystemDark);
 
-  // Конфигурируем палитру MUI для светлого и темного режимов
-  const theme = createTheme({
-    palette: {
-      mode: isDark ? "dark" : "light",
-      primary: {
-        main: "#aa3bff", // Ваш фиолетовый бренд-цвет из аватара
-      },
-      background: {
-        default: isDark ? "#121212" : "#f5f7fa",
-        paper: isDark ? "#1e1e1e" : "#ffffff",
-      },
-    },
-    components: {
-      MuiButton: {
-        styleOverrides: {
-          root: {
-            borderRadius: 8,
+  const primaryMain = isDark ? PRIMARY_DARK : PRIMARY_LIGHT;
+
+  const theme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: isDark ? "dark" : "light",
+          primary: { main: primaryMain },
+          background: {
+            default: isDark ? "#121212" : "#f5f7fa",
+            paper: isDark ? "#1e1e1e" : "#ffffff",
           },
         },
-      },
-      MuiPaper: {
-        styleOverrides: {
-          root: {
-            backgroundImage: "none",
-          },
+        components: {
+          MuiButton: { styleOverrides: { root: { borderRadius: 8 } } },
+          MuiPaper: { styleOverrides: { root: { backgroundImage: "none" } } },
         },
-      },
-    },
-  });
+      }),
+    [isDark, primaryMain]
+  );
+
+  const value = useMemo<ThemeContextType>(() => ({ themeMode, setThemeMode }), [themeMode]);
 
   return (
-    <ThemeContext.Provider value={{ themeMode, setThemeMode }}>
+    <ThemeContext.Provider value={value}>
       <MuiThemeProvider theme={theme}>
-        {/* CssBaseline автоматически перекрашивает фон тега body в зависимости от темы */}
-        <CssBaseline />
+        <CssBaseline enableColorScheme />
+        <GlobalStyles styles={{ ":root": { "--app-primary": primaryMain } }} />
         {children}
       </MuiThemeProvider>
     </ThemeContext.Provider>
   );
 }
 
-export function useAppTheme() {
+export function useAppTheme(): ThemeContextType {
   const context = useContext(ThemeContext);
   if (!context) {
     throw new Error("useAppTheme должен использоваться внутри ThemeProvider");

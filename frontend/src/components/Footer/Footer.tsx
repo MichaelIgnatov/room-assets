@@ -6,11 +6,15 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <Box component="footer" className={styles.footer}>
+    <Box
+      component="footer"
+      className={styles.footer}
+      sx={{ bgcolor: "background.paper", color: "text.secondary", borderTop: 1, borderColor: "divider" }}
+    >
       <Container maxWidth="lg">
         <Box className={styles.content}>
           
-          {/* ЛЕВАЯ КОЛОНКА: Выравнивание строго по левому краю */}
+          {/* ЛЕВАЯ КОЛОНКА */}
           <Box className={styles.infoColumn}>
             <Typography className={styles.footerText} sx={{ fontWeight: 600, color: "text.primary" }}>
               © {currentYear} Room & Assets. Все права защищены.
@@ -30,10 +34,10 @@ export function Footer() {
             </Link>
             
             <Box className={styles.socials}>
-              <IconButton size="small" component="a" href="#" sx={{ color: "#6b6375", p: 0.5, '&:hover': { color: '#aa3bff' } }}>
+              <IconButton size="small" component="a" href="#" sx={{ color: "text.secondary", p: 0.5, '&:hover': { color: 'primary.main' } }}>
                 <GitHub sx={{ fontSize: 30 }} />
               </IconButton>
-              <IconButton size="small" component="a" href="#" sx={{ color: "#6b6375", p: 0.5, '&:hover': { color: '#aa3bff' } }}>
+              <IconButton size="small" component="a" href="#" sx={{ color: "text.secondary", p: 0.5, '&:hover': { color: 'primary.main' } }}>
                 <Language sx={{ fontSize: 30 }} />
               </IconButton>
             </Box>

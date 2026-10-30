@@ -3,7 +3,8 @@ import {
   Paper, Table, TableHead, TableRow, TableCell, TableBody,
   Chip, CircularProgress, Box, IconButton, Stack, Typography, 
   Collapse, TextField,
-  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button 
+  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button,
+  alpha
 } from "@mui/material";
 import { 
   VisibilityOutlined, EditOutlined, DeleteOutlined, 
@@ -76,16 +77,16 @@ export function RoomsTable({ filters }: RoomsTableProps) {
   }, []);
 
   const filteredItems = items?.filter((r) => {
-    // 1. Поиск по коду или названию
+    // Поиск по коду или названию
     const matchesSearch =
       r.code.toLowerCase().includes(filters.search.toLowerCase()) ||
       r.name.toLowerCase().includes(filters.search.toLowerCase());
-    // 2. Фильтр по статусу
+    // Фильтр по статусу
     const matchesStatus = filters.status === "all" || r.status === filters.status;
-    // 3. Фильтр по минимальной вместимости
+    // Фильтр по минимальной вместимости
     const matchesCapacity =
       !filters.capacity || r.capacity >= parseInt(filters.capacity, 10);
-    // 4. Фильтр по галочкам оборудования
+    // Фильтр по галочкам оборудования
     const matchesEquipment = filters.selectedEquipment.every((equipId) =>
       r.equipment?.includes(equipId)
     );
@@ -107,10 +108,10 @@ export function RoomsTable({ filters }: RoomsTableProps) {
   
 
   return (
-    <Paper elevation={2} sx={{ borderRadius: 2, overflow: "hidden", border: "1px solid #eef0f3" }}>
+    <Paper elevation={2} sx={{ borderRadius: 2, overflow: "hidden", border: 1, borderColor: "divider" }}>
       <Table>
         <TableHead>
-          <TableRow sx={{ bgcolor: "#fafafa" }}>
+          <TableRow sx={{ bgcolor: "action.hover" }}>
             <TableCell width={100} sx={{ py: 2, fontWeight: 600 }}>Номер</TableCell>
             <TableCell sx={{ py: 2, fontWeight: 600 }}>Название</TableCell>
             <TableCell width={160} align="right" sx={{ py: 2, fontWeight: 600 }}>Вместимость</TableCell>
@@ -130,7 +131,7 @@ export function RoomsTable({ filters }: RoomsTableProps) {
                 <TableRow hover>
                   <TableCell sx={{ py: 2, color: "text.secondary", verticalAlign: "middle" }}>{r.code}</TableCell>
                   <TableCell sx={{ py: 2, verticalAlign: "middle" }}>
-                    <Typography sx={{ fontWeight: 600, color: "#1a1a1a" }}>{r.name}</Typography>
+                    <Typography sx={{ fontWeight: 600, color: "text.primary" }}>{r.name}</Typography>
                   </TableCell>
                   <TableCell align="right" sx={{ py: 2, verticalAlign: "middle" }}>
                     <Stack component="div" direction="row" spacing={1} sx={{ justifyContent: "flex-end", alignItems: "center" }}>
@@ -141,7 +142,7 @@ export function RoomsTable({ filters }: RoomsTableProps) {
                   <TableCell sx={{ py: 2, verticalAlign: "middle" }}>
                     <Stack component="div" direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", maxWidth: 350 }}>
                       {r.equipment?.map((k) => (
-                        <Chip key={k} label={EQUIP_LABEL[k] ?? k} size="small" variant="outlined" sx={{ borderRadius: 1.5, bgcolor: "#fafafa" }} />
+                        <Chip key={k} label={EQUIP_LABEL[k] ?? k} size="small" variant="outlined" sx={{ borderRadius: 1.5, bgcolor: "action.hover" }} />
                       ))}
                     </Stack>
                   </TableCell>
@@ -172,10 +173,10 @@ export function RoomsTable({ filters }: RoomsTableProps) {
                   </TableCell>
                 </TableRow>
 
-                <TableRow sx={{ bgcolor: "#fcfdfe" }}>
+                <TableRow sx={{ bgcolor: "background.default" }}>
                   <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
                     <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                      <Box sx={{ margin: 2, p: 2, border: "1px dashed #e5e4e7", borderRadius: 2, bgcolor: "#ffffff" }}>
+                      <Box sx={{ margin: 2, p: 2, border: "1px dashed", borderColor: "divider", borderRadius: 2, bgcolor: "background.paper" }}>
                         <Stack direction={{ xs: "column", sm: "row" }} spacing={3} sx={{ alignItems: "flex-start" }}>
                           <Box sx={{ minWidth: 180 }}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, textAlign: "left" }}>
@@ -206,10 +207,10 @@ export function RoomsTable({ filters }: RoomsTableProps) {
                                       display: "flex", 
                                       alignItems: "center", 
                                       gap: 1.5, 
-                                      bgcolor: r.status === "maintenance" ? "#fff5f5" : "#fff9e6", 
+                                      bgcolor: (theme) => alpha(r.status === "maintenance" ? theme.palette.error.main : theme.palette.warning.main, 0.12), 
                                       p: 1, 
                                       borderRadius: 1.5, 
-                                      border: r.status === "maintenance" ? "1px solid #ffe3e3" : "1px solid #ffeaa7", 
+                                      border: (theme) => `1px solid ${alpha(r.status === "maintenance" ? theme.palette.error.main : theme.palette.warning.main, 0.35)}`, 
                                       maxWidth: 500 
                                     }}
                                   >

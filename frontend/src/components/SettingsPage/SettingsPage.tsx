@@ -1,62 +1,57 @@
-import { Box, Typography, Avatar, Button, Switch, FormControlLabel, Divider, Stack, TextField } from "@mui/material";
+import { Box, Typography, Avatar, Button, Switch, FormControlLabel, Divider, Stack, TextField, alpha } from "@mui/material";
 import { LightModeOutlined, DarkModeOutlined, SettingsBrightnessOutlined, LockOutlined, NotificationsOutlined, LogoutOutlined } from "@mui/icons-material";
 import { useState } from "react";
-// ИМПОРТ: Подключаем хук авторизации из контекста вашего проекта
 import { useAuth } from "../../context/auth"; 
-import { getInitials } from "../Header/header.utils"; // Подключаем вашу утилиту для инициалов
+import { useAppTheme } from "../../context/ThemeContext";
+import { getInitials } from "../Header/header.utils";
 import styles from "./SettingsPage.module.css";
 
 export function SettingsPage() {
-  // Достаем данные текущего авторизованного пользователя из глобального контекста лабы 4
   const { user } = useAuth(); 
-
-  // Локальные состояния макета для кнопок и тумблеров
-  const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">("light");
+  const { themeMode, setThemeMode } = useAppTheme();
   const [notifyBooking, setNotifyBooking] = useState(true);
   const [notifyEmail, setNotifyEmail] = useState(false);
 
-  // Получаем инициалы из имени пользователя, который лежит в контексте
   const initials = user?.name ? getInitials(user.name) : "??";
 
   return (
-    <Box className={styles.cardBlock} sx={{ textAlign: "left", bgcolor: "background.paper", color: "text.primary", borderColor: "divider" }}>
+    <Box className={styles.cardBlock} sx={{ textAlign: "left", bgcolor: "background.paper", color: "text.primary", border: 1, borderColor: "divider", boxShadow: 1 }}>
       
       <Typography variant="h5" sx={{ fontWeight: 700, color: "text.primary", mb: 3 }}>
         Настройки аккаунта
       </Typography>
 
-      {/* ================= СЕКЦИЯ 1: ПРОФИЛЬ ================= */}
+      {/* ПРОФИЛЬ */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "text.primary", mb: 2 }}>
           Личный профиль
         </Typography>
         
         <Box className={styles.profileRow}>
-          {/* Динамический аватар: отображает инициалы из AuthContext */}
-          <Avatar sx={{ width: 72, height: 72, bgcolor: "#aa3bff", fontSize: 24, fontWeight: 600 }}>
+          {/* Динамический аватар */}
+          <Avatar sx={{ width: 72, height: 72, bgcolor: "primary.main", color: "primary.contrastText", fontSize: 24, fontWeight: 600 }}>
             {initials}
           </Avatar>
           
           <Box className={styles.profileInfo}>
-            {/* Динамическое имя пользователя из AuthContext */}
+            {/* Динамическое имя пользователя */}
             <Typography variant="h6" sx={{ fontWeight: 600, color: "text.primary" }}>
               {user?.name || "Имя не указано"}
             </Typography>
-            {/* Динамический Email из AuthContext */}
+            {/* Динамический Email  */}
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              {/* {user?.email || "email@example.com"} */}
               {"email@example.com"}
             </Typography>
-            <Typography variant="caption" sx={{ mt: 0.5, bgcolor: "rgba(170, 59, 255, 0.1)", color: "#aa3bff", px: 1.5, py: 0.5, borderRadius: 1, fontWeight: 600, alignSelf: "flex-start" }}>
+            <Typography variant="caption" sx={{ mt: 0.5, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12), color: "primary.main", px: 1.5, py: 0.5, borderRadius: 1, fontWeight: 600, alignSelf: "flex-start" }}>
               Роль: Пользователь
             </Typography>
           </Box>
         </Box>
       </Box>
 
-      <Divider sx={{ my: 3, borderColor: "#eef0f3" }} />
+      <Divider sx={{ my: 3, borderColor: "divider" }} />
 
-      {/* ================= СЕКЦИЯ 2: ВНЕШНИЙ ВИД ================= */}
+      {/* ВНЕШНИЙ ВИД */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "text.primary", mb: 0.5 }}>
           Внешний вид
@@ -98,9 +93,9 @@ export function SettingsPage() {
         </Box>
       </Box>
 
-      <Divider sx={{ my: 3, borderColor: "#eef0f3" }} />
+      <Divider sx={{ my: 3, borderColor: "divider" }} />
 
-      {/* ================= СЕКЦИЯ 3: УВЕДОМЛЕНИЯ ================= */}
+      {/* УВЕДОМЛЕНИЯ */}
       <Box sx={{ mb: 3 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
           <NotificationsOutlined fontSize="small" sx={{ color: "text.secondary" }} />
@@ -124,9 +119,9 @@ export function SettingsPage() {
         </Stack>
       </Box>
 
-      <Divider sx={{ my: 3, borderColor: "#eef0f3" }} />
+      <Divider sx={{ my: 3, borderColor: "divider" }} />
 
-      {/* ================= СЕКЦИЯ 4: БЕЗОПАСНОСТЬ ================= */}
+      {/* БЕЗОПАСНОСТЬ */}
       <Box sx={{ mb: 4 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
           <LockOutlined fontSize="small" sx={{ color: "text.secondary" }} />
@@ -146,9 +141,9 @@ export function SettingsPage() {
         </Stack>
       </Box>    
 
-      <Divider sx={{ my: 3, borderColor: "#eef0f3" }} />
+      <Divider sx={{ my: 3, borderColor: "divider" }} />
 
-      {/* ================= СЕКЦИЯ 5: ВЫХОД ИЗ СИСТЕМЫ ================= */}
+      {/* ВЫХОД ИЗ СИСТЕМЫ */}
       <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
         <Button 
           variant="text" 

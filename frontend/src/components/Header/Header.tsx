@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { Box } from "@mui/material";
 import s from "./Header.module.css";
 import type { NavItem } from "./header.types";
 import { DEFAULT_NAV } from "./Header.config";
@@ -20,7 +21,11 @@ export function Header({
   const { user } = useAuth();
 
   return (
-    <header className={s.header}>
+    <Box
+      component="header"
+      className={s.header}
+      sx={{ bgcolor: "background.paper", color: "text.primary", borderBottom: 1, borderColor: "divider" }}
+    >
       <div className={s.row}>
         <div className={s.brand}>
           <div className={s.logoBox} aria-hidden>
@@ -55,15 +60,22 @@ export function Header({
             <NotificationsNoneOutlined />
           </button>
 
-          <div className={s.avatar} title={user?.name || "Гость"}>
+          <Box
+            className={s.avatar}
+            title={user?.name || "Гость"}
+            sx={{
+              bgcolor: (theme) => (theme.palette.mode === "dark" ? theme.palette.grey[800] : "#cdd5df"),
+              color: "text.primary",
+            }}
+          >
             {user?.avatarUrl ? (
               <img src={user.avatarUrl} alt="" width={32} height={32} style={{ borderRadius: "999px" }} />
             ) : (
               <span>{getInitials(user?.name)}</span>
             )}
-          </div>
+          </Box>
         </div>
       </div>
-    </header>
+    </Box>
   );
 }

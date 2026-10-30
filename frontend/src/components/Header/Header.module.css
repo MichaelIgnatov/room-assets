@@ -1,22 +1,22 @@
-.header   { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #eef0f3; z-index: 10; }
+.header   { position: sticky; top: 0; z-index: 10; }
 .row      { display: flex; align-items: center; gap: 16px; padding: 10px 16px; max-width: 1200px; margin: 0 auto; }
 
-.brand    { display: flex; align-items: center; gap: 10px; color: #0f172a; font-weight: 700; }
-.logoBox  { width: 32px; height: 32px; border-radius: 10px; background: #1d4ed8; color: #fff; display: grid; place-items: center; }
+.brand    { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.logoBox  { width: 32px; height: 32px; border-radius: 10px; background: var(--app-primary, #1d4ed8); color: #fff; display: grid; place-items: center; }
 .logoIc   { width: 18px; height: 18px; }
 .app      { font-size: 18px; }
 
 .nav      { display: flex; align-items: center; gap: 8px; margin-left: 8px; }
-.tab      { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; border: none; background: transparent; color: #334155; cursor: pointer; }
+.tab      { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; border: none; background: transparent; color: inherit; cursor: pointer; }
 .tab:focus-visible { outline: 3px solid rgba(99,102,241,.25); outline-offset: 2px; border-radius: 12px; }
-.tabActive { background: #1d4ed8; color: #fff; }
+.tabActive { background: var(--app-primary, #1d4ed8); color: #fff; }
 .tabIc    { width: 16px; height: 16px; }
 
 .spacer   { flex: 1; }
 .right    { display: flex; align-items: center; gap: 12px; }
 
-.iconBtn  { background: transparent; border: none; padding: 6px; border-radius: 10px; color: #334155; cursor: pointer; }
+.iconBtn  { background: transparent; border: none; padding: 6px; border-radius: 10px; color: inherit; cursor: pointer; }
 .iconBtn:active { transform: translateY(1px); }
 
-.avatar   { width: 32px; height: 32px; border-radius: 999px; background: #cdd5df; display: grid; place-items: center; color: #334155; font-weight: 700; }
-.userNm   { font-size: 14px; color: #334155; }
+.avatar   { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; font-weight: 700; }
+.userNm   { font-size: 14px; }

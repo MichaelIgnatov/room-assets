@@ -27,7 +27,7 @@ export function CatalogFilters({ filters, onChange, onReset }: CatalogFiltersPro
   };
 
   return (
-    <Box className={styles.filtersContainer} sx={{ bgcolor: "background.paper", color: "text.primary", borderColor: "divider" }}>
+    <Box className={styles.filtersContainer} sx={{ bgcolor: "background.paper", color: "text.primary", border: 1, borderColor: "divider", boxShadow: 1 }}>
       {/* ОСНОВНАЯ ПАНЕЛЬ ФИЛЬТРОВ */}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: "center", width: "100%" }}>
         {/* Поле поиска */}
@@ -74,14 +74,14 @@ export function CatalogFilters({ filters, onChange, onReset }: CatalogFiltersPro
         </Button>
 
         {/* Кнопка сброса */}
-        <IconButton title="Сбросить все фильтры" onClick={onReset} sx={{ border: "1px solid #eef0f3", borderRadius: 1.5, height: 40, width: 40, bgcolor: "#fafafa", flexShrink: 0 }}>
+        <IconButton title="Сбросить все фильтры" onClick={onReset} sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, height: 40, width: 40, bgcolor: "action.hover", flexShrink: 0 }}>
           <RotateLeftOutlined />
         </IconButton>
       </Stack>
 
       {/* РАСШИРЕННАЯ ПАНЕЛЬ */}
       <Collapse in={showAdvanced}>
-        <Box sx={{ mt: 3, pt: 2, borderTop: "1px dashed #eef0f3" }}>
+        <Box sx={{ mt: 3, pt: 2, borderTop: "1px dashed", borderColor: "divider" }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={4}>
             <Box sx={{ minWidth: 200 }}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: "text.secondary" }}>

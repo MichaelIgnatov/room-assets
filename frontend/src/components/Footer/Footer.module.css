@@ -1,69 +1,66 @@
-/* Контейнер футера зажат в границах контента сайта (100%) */
+
 .footer {
-    background-color: #ffffff;
-    border-top: 1px solid #e5e4e7;
-    padding: 24px 0;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  
-  /* Распределяем элементы по краям */
+  padding: 24px 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+
+.content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+
+.infoColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left !important;
+}
+
+.contactsColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+
+.footerText {
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+
+
+.linkItem {
+  color: inherit !important;
+  text-decoration: none !important;
+  transition: color 0.2s ease;
+}
+
+.linkItem:hover {
+  color: var(--app-primary, #aa3bff) !important;
+}
+
+.socials {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
   .content {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    text-align: center !important;
   }
-  
-  /* Принудительно выравниваем текст левой колонки по левому краю, перебивая index.css */
   .infoColumn {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    text-align: left !important;
+    text-align: center !important;
   }
-  
   .contactsColumn {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 12px;
-  }
-  
-  /* Единый одинаковый размер шрифта для всего подвала */
-  .footerText {
-    font-size: 14px !important;
-    line-height: 1.4 !important;
-  }
-  
-  /* Строгий цвет ссылок, переходящий в фиолетовый при наведении */
-  .linkItem {
-    color: #6b6375 !important;
-    text-decoration: none !important;
-    transition: color 0.2s ease;
-  }
-  
-  .linkItem:hover {
-    color: #aa3bff !important;
-  }
-  
-  .socials {
-    display: flex;
-    gap: 12px;
     align-items: center;
   }
-  
-  @media (max-width: 768px) {
-    .content {
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-      text-align: center !important;
-    }
-    .infoColumn {
-      text-align: center !important;
-    }
-    .contactsColumn {
-      align-items: center;
-    }
-  }
-  
+}
