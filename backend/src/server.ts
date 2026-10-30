@@ -60,7 +60,8 @@ async function main() {
 
     await app.listen({ port, host })
     console.log(`\x1b[32m[Active] Сервер успешно запущен и слушает: http://${host}:${port}\x1b[0m`)
-    console.log(`\x1b[36m[Route] Проверить комнаты: http://localhost:${port}/api/rooms\x1b[0m`)
+    console.log(`\x1b[36m[Route] Каталог аудиторий: http://localhost:${port}/api/rooms\x1b[0m`)
+    console.log(`\x1b[36m[Route] Спецификация OpenAPI: http://localhost:${port}/openapi.json\x1b[0m`)
   } catch (err) {
     const { error, meta } = describeError(err)
     console.error('Failed to start application:', error)

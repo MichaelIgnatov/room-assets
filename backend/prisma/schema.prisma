@@ -10,20 +10,146 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  uurl      = "postgresql://postgres:postgres@db:5432/room_assets?schema=public"
 }
+
+// Перечисления
+
+ enum Role {
+  USER
+  ADMIN
+ }
+
+ enum NotificationType {
+  BOOKING_CREATED
+  BOOKING_CANCELLED
+  BOOKING_STATUS_CHANGED
+  SYSTEM
+ }
+
+
+ // Пользователи
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bookings      Booking[]
+  notifications Notification[]
+
+  @@map("users")
 }
 
+
+// Справочники
+
+// Статусы аудитории: available, booked, maintenance
+model RoomStatus {
+  id    Int    @id @default(autoincrement())
+  code  String @unique
+  name  String
+  rooms Room[]
+
+  @@map("room_statuses")
+}
+
+// Статусы брони: pending, confirmed, rejected, cancelled, completed
+model BookingStatus {
+  id       Int       @id @default(autoincrement())
+  code     String    @unique
+  name     String
+  bookings Booking[]
+
+  @@map("booking_statuses")
+}
+
+// Оборудование: projector, wifi, microphone, computers, board, ...
+model Equipment {
+  id    Int             @id @default(autoincrement())
+  code  String          @unique
+  name  String
+  rooms RoomEquipment[]
+
+  @@map("equipment")
+}
+
+
+// Аудитории
+
 model Room {
-  id        String   @id
-  code      String
-  name      String
-  capacity  Int
-  equipment String[] // Массив строк для оборудования
-  status    String   // "available", "booked", "maintenance"
+  id          String   @id @default(cuid())
+  code        String
+  name        String
+  capacity    Int
+  description String?
+  statusId    Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  status      RoomStatus @relation(fields: [statusId], references: [id])
+  equipment RoomEquipment[]
+  bookings  Booking[]
+
+  @@index([statusId])
+  @@map("rooms")
+}
+
+// Связь «многие ко многим»: оборудование в аудитории
+model RoomEquipment {
+  roomId      String
+  equipmentId Int
+
+  room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, equipmentId])
+  @@map("room_equipment")
+}
+
+// Бронирования
+
+model Booking {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  statusId  Int
+  startsAt  DateTime
+  endsAt    DateTime
+  purpose   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  room          Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        BookingStatus  @relation(fields: [statusId], references: [id])
+  notifications Notification[]
+
+  @@index([roomId, startsAt, endsAt])
+  @@index([userId])
+  @@index([statusId])
+  @@map("bookings")
+}
+
+// Уведомления
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  bookingId String?
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead])
+  @@map("notifications")
 }

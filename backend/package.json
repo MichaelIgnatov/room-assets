@@ -9,11 +9,13 @@
     "lint": "oxlint",
     "start": "node dist/server.js",
     "db:generate": "prisma generate",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
     "@fastify/helmet": "^13.0.0",
+    "@fastify/jwt": "^9.0.0",
     "@fastify/rate-limit": "^10.0.0",
     "@fastify/swagger": "^9.0.0",
     "@fastify/type-provider-typebox": "^5.1.0",

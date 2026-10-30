@@ -17,7 +17,7 @@ WORKDIR /app
 ENV NODE_ENV=development
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-CMD ["sh","-lc","npx prisma generate --schema=prisma/schema.prisma && npx prisma migrate deploy || true; npx tsx src/server.ts"]
+CMD ["sh","-lc","npx prisma generate --schema=prisma/schema.prisma && npx prisma migrate deploy && npx tsx src/db/seed.ts; npx tsx src/server.ts"]
 
 FROM node:20-alpine AS prod
 WORKDIR /app
@@ -30,5 +30,4 @@ COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 
 USER node
 EXPOSE 3000
-CMD ["sh","-c","node_modules/.bin/prisma migrate deploy && node dist/server.js"]
-
+CMD ["sh","-c","node_modules/.bin/prisma migrate deploy && node dist/db/seed.js && node dist/server.js"]
