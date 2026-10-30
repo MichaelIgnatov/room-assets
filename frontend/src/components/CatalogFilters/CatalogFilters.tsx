@@ -1,49 +1,42 @@
 import { Box, TextField, MenuItem, Button, Stack, Collapse, IconButton, Typography, FormGroup, FormControlLabel, Checkbox } from "@mui/material";
 import { TuneOutlined, RotateLeftOutlined, SearchOutlined } from "@mui/icons-material";
 import { useState } from "react";
+import { type CatalogFiltersState } from "../../api/roomsApi";
 import styles from "./CatalogFilters.module.css";
 
-const AVAILABLE_EQUIPMENT = [
-  { id: "projector", label: "Проектор" },
-  { id: "wifi", label: "Wi-Fi" },
-  { id: "microphone", label: "Микрофон" },
-  { id: "computers", label: "Компьютеры" },
-  { id: "board", label: "Доска" },
-];
+interface CatalogFiltersProps {
+  filters: CatalogFiltersState;
+  onChange: (updater: (prev: CatalogFiltersState) => CatalogFiltersState) => void;
+  onReset: () => void;
+}
 
-export function CatalogFilters() {
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+export function CatalogFilters({ filters, onChange, onReset }: CatalogFiltersProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [capacity, setCapacity] = useState("");
-  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
 
-  const handleEquipmentChange = (id: string) => {
-    setSelectedEquipment((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
+  const handleFieldChange = (key: keyof CatalogFiltersState, value: any) => {
+    onChange((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleReset = () => {
-    setSearch("");
-    setStatus("all");
-    setCapacity("");
-    setSelectedEquipment([]);
+  const handleEquipmentChange = (id: string) => {
+    onChange((prev) => ({
+      ...prev,
+      selectedEquipment: prev.selectedEquipment.includes(id)
+        ? prev.selectedEquipment.filter((item) => item !== id)
+        : [...prev.selectedEquipment, id],
+    }));
   };
 
   return (
-    <Box className={styles.filtersContainer}>
-      
+    <Box className={styles.filtersContainer} sx={{ bgcolor: "background.paper", color: "text.primary", borderColor: "divider" }}>
       {/* ОСНОВНАЯ ПАНЕЛЬ ФИЛЬТРОВ */}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: "center", width: "100%" }}>
-        
         {/* Поле поиска */}
         <TextField
           label="Поиск аудитории"
           variant="outlined"
           size="small"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={filters.search}
+          onChange={(e) => handleFieldChange("search", e.target.value)}
           placeholder="Введите название или номер..."
           sx={{ flexGrow: 1, width: "100%" }} 
           slotProps={{
@@ -57,8 +50,8 @@ export function CatalogFilters() {
         <TextField
           select
           label="Статус"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          value={filters.status}
+          onChange={(e) => handleFieldChange("status", e.target.value)}
           size="small"
           sx={{ width: 200, minWidth: 200, flexShrink: 0 }}
         >
@@ -81,7 +74,7 @@ export function CatalogFilters() {
         </Button>
 
         {/* Кнопка сброса */}
-        <IconButton title="Сбросить все фильтры" onClick={handleReset} sx={{ border: "1px solid #eef0f3", borderRadius: 1.5, height: 40, width: 40, bgcolor: "#fafafa", flexShrink: 0 }}>
+        <IconButton title="Сбросить все фильтры" onClick={onReset} sx={{ border: "1px solid #eef0f3", borderRadius: 1.5, height: 40, width: 40, bgcolor: "#fafafa", flexShrink: 0 }}>
           <RotateLeftOutlined />
         </IconButton>
       </Stack>
@@ -90,7 +83,6 @@ export function CatalogFilters() {
       <Collapse in={showAdvanced}>
         <Box sx={{ mt: 3, pt: 2, borderTop: "1px dashed #eef0f3" }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={4}>
-            
             <Box sx={{ minWidth: 200 }}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: "text.secondary" }}>
                 Минимальная вместимость
@@ -100,8 +92,8 @@ export function CatalogFilters() {
                 placeholder="Например, 20"
                 size="small"
                 fullWidth
-                value={capacity}
-                onChange={(e) => setCapacity(e.target.value)}
+                value={filters.capacity}
+                onChange={(e) => handleFieldChange("capacity", e.target.value)}
                 slotProps={{ htmlInput: { min: 0 } }}
               />
             </Box>
@@ -111,13 +103,19 @@ export function CatalogFilters() {
                 Требуемое оборудование
               </Typography>
               <FormGroup row>
-                {AVAILABLE_EQUIPMENT?.map((equip) => (
+                {[
+                  { id: "projector", label: "Проектор" },
+                  { id: "wifi", label: "Wi-Fi" },
+                  { id: "microphone", label: "Микрофон" },
+                  { id: "computers", label: "Компьютеры" },
+                  { id: "board", label: "Доска" },
+                ].map((equip) => (
                   <FormControlLabel
                     key={equip.id}
                     control={
                       <Checkbox
                         size="small"
-                        checked={selectedEquipment.includes(equip.id)}
+                        checked={filters.selectedEquipment.includes(equip.id)}
                         onChange={() => handleEquipmentChange(equip.id)}
                       />
                     }
@@ -127,7 +125,6 @@ export function CatalogFilters() {
                 ))}
               </FormGroup>
             </Box>
-
           </Stack>
         </Box>
       </Collapse>

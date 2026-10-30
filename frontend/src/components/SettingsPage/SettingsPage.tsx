@@ -19,7 +19,7 @@ export function SettingsPage() {
   const initials = user?.name ? getInitials(user.name) : "??";
 
   return (
-    <Box className={styles.cardBlock} sx={{ textAlign: "left" }}>
+    <Box className={styles.cardBlock} sx={{ textAlign: "left", bgcolor: "background.paper", color: "text.primary", borderColor: "divider" }}>
       
       <Typography variant="h5" sx={{ fontWeight: 700, color: "text.primary", mb: 3 }}>
         Настройки аккаунта

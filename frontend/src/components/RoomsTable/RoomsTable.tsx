@@ -2,13 +2,14 @@ import React, { useEffect, useState } from "react";
 import {
   Paper, Table, TableHead, TableRow, TableCell, TableBody,
   Chip, CircularProgress, Box, IconButton, Stack, Typography, 
-  Collapse, TextField
+  Collapse, TextField,
+  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button 
 } from "@mui/material";
 import { 
   VisibilityOutlined, EditOutlined, DeleteOutlined, 
   Groups2Outlined, AccessTimeOutlined 
 } from "@mui/icons-material";
-import { fetchRooms, type RoomDto } from "../../api/roomsApi";
+import { type CatalogFiltersState, fetchRooms, type RoomDto } from "../../api/roomsApi";
 
 const STATUS_LABEL: Record<RoomDto["status"], string> = {
   available: "Доступна",
@@ -43,12 +44,20 @@ const ROOMS_SCHEDULE: Record<string, Array<{ from: string; to: string; title: st
     { from: "00:00", to: "23:59", title: "Тех-обслуживание" }
   ],
 };
-export function RoomsTable() {
+
+interface RoomsTableProps {
+  filters: CatalogFiltersState;
+}
+
+
+export function RoomsTable({ filters }: RoomsTableProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [items, setItems]     = useState<RoomDto[]>([]);
   const [expandedRoomId, setExpandedRoomId] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState("2026-10-25");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [roomIdToDelete, setRoomIdToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -66,8 +75,36 @@ export function RoomsTable() {
     return () => { mounted = false; };
   }, []);
 
+  const filteredItems = items?.filter((r) => {
+    // 1. Поиск по коду или названию
+    const matchesSearch =
+      r.code.toLowerCase().includes(filters.search.toLowerCase()) ||
+      r.name.toLowerCase().includes(filters.search.toLowerCase());
+    // 2. Фильтр по статусу
+    const matchesStatus = filters.status === "all" || r.status === filters.status;
+    // 3. Фильтр по минимальной вместимости
+    const matchesCapacity =
+      !filters.capacity || r.capacity >= parseInt(filters.capacity, 10);
+    // 4. Фильтр по галочкам оборудования
+    const matchesEquipment = filters.selectedEquipment.every((equipId) =>
+      r.equipment?.includes(equipId)
+    );
+    return matchesSearch && matchesStatus && matchesCapacity && matchesEquipment;
+  });
+
+  const handleDeleteConfirm = () => {
+    if (roomIdToDelete) {
+      setItems((prevItems) => prevItems.filter((item) => item.id !== roomIdToDelete));
+      setDeleteDialogOpen(false);
+      setRoomIdToDelete(null);
+    }
+  };
+  
+
   if (loading) return <Box sx={{ p: 3, display: "grid", placeItems: "center" }}><CircularProgress /></Box>;
   if (error)   return <Box sx={{ p: 3 }}><Typography color="error">{error}</Typography></Box>;
+
+  
 
   return (
     <Paper elevation={2} sx={{ borderRadius: 2, overflow: "hidden", border: "1px solid #eef0f3" }}>
@@ -83,7 +120,8 @@ export function RoomsTable() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {items?.map((r) => {
+          
+          {filteredItems?.map((r) => {
             const isExpanded = expandedRoomId === r.id;
             const currentSchedule = ROOMS_SCHEDULE[r.code] || [];
 
@@ -126,7 +164,11 @@ export function RoomsTable() {
                       <VisibilityOutlined fontSize="small" />
                     </IconButton>
                     <IconButton size="small" title="Редактировать"><EditOutlined fontSize="small" /></IconButton>
-                    <IconButton size="small" color="error" title="Удалить"><DeleteOutlined fontSize="small" /></IconButton>
+                    <IconButton size="small" color="error" title="Удалить" onClick={() => {
+                          setRoomIdToDelete(r.id);
+                          setDeleteDialogOpen(true); }}>
+                        <DeleteOutlined fontSize="small" />
+                      </IconButton>
                   </TableCell>
                 </TableRow>
 
@@ -193,6 +235,30 @@ export function RoomsTable() {
           })}
         </TableBody>
       </Table>
+      {/* Всплывающее окно подтверждения удаления */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title" sx={{ fontWeight: 600 }}>
+          Подтверждение удаления
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            Вы действительно хотите удалить эту аудиторию?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 1 }}>
+          <Button onClick={() => setDeleteDialogOpen(false)} color="inherit" variant="outlined">
+            Отмена
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained" autoFocus>
+            Удалить
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 }

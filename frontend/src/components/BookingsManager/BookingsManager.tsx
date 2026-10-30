@@ -12,7 +12,8 @@ import {
   AddCircleOutlined, 
   CalendarTodayOutlined, 
   AccessTimeOutlined, 
-  SearchOutlined 
+  SearchOutlined,
+  RotateLeftOutlined
 } from "@mui/icons-material";
 import { useState } from "react";
 import styles from "./BookingsManager.module.css";
@@ -78,10 +79,17 @@ export function BookingsManager() {
     page * rowsPerPage + rowsPerPage
   );
 
+  const formatDateToRU = (dateStr: string) => {
+    if (!dateStr) return "";
+    const [year, month, day] = dateStr.split("-");
+    if (!year || !month || !day) return dateStr; 
+    return `${day}.${month}.${year}`;
+  };
+
   return (
     <Box className={styles.bookingsContainer}>
       
-      <Box className={styles.topPanel}>
+      <Box className={styles.topPanel} sx={{ bgcolor: "background.paper", color: "text.primary", borderColor: "divider" }}>
         {/* Жестко зафиксировали выравнивание текста по левому краю */}
         <Typography 
           variant="h6" 
@@ -123,6 +131,25 @@ export function BookingsManager() {
             }}
             slotProps={{ inputLabel: { shrink: true } }}
           />
+
+          <IconButton 
+            title="Сбросить фильтры" 
+            onClick={() => {
+              setSearchQuery("");
+              setFilterDate("");
+              setPage(0);
+            }} 
+            sx={{ 
+              border: "1px solid #eef0f3", 
+              borderRadius: 1.5, 
+              height: 40, 
+              width: 40, 
+              bgcolor: "#fafafa",
+              flexShrink: 0
+            }}
+          >
+            <RotateLeftOutlined />
+          </IconButton>
 
           <Button 
             variant="contained" 
@@ -170,7 +197,7 @@ export function BookingsManager() {
                   <TableCell sx={{ py: 2, verticalAlign: "middle" }}>
                     <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                       <CalendarTodayOutlined sx={{ fontSize: 16, color: "text.secondary" }} />
-                      <Typography variant="body2">{b.date}</Typography>
+                      <Typography variant="body2">{formatDateToRU(b.date)}</Typography>
                     </Stack>
                   </TableCell>
                   <TableCell sx={{ py: 2, verticalAlign: "middle" }}>
@@ -211,7 +238,7 @@ export function BookingsManager() {
       </Paper>
 
       <Modal open={openModal} onClose={() => setOpenModal(false)}>
-        <Paper className={styles.modalPaper}>
+        <Paper className={styles.modalPaper} sx={{ bgcolor: "background.paper", color: "text.primary", borderColor: "divider" }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             Новое бронирование
           </Typography>

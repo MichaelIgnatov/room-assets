@@ -25,3 +25,10 @@ export async function fetchRooms(page = 1): Promise<RoomsResponseDto> {
   }
   return data;
 }
+
+export interface CatalogFiltersState {
+  search: string;
+  status: string;
+  capacity: string;
+  selectedEquipment: string[];
+}
