@@ -1,7 +1,17 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox'
 import { Type as T } from '@sinclair/typebox'
+import type { PrismaClient } from '../generated/prisma/client.js'
 import { requireAdmin, requireUser } from '../lib/auth.js'
-import { FREE_BOOKING_STATUSES, bookingInclude, formatTime, parseSlot, toBookingDto } from '../lib/mappers.js'
+import {
+  FREE_BOOKING_STATUSES,
+  bookingInclude,
+  dateOf,
+  formatTime,
+  parseSlot,
+  timeOf,
+  toBookingDto,
+} from '../lib/mappers.js'
+import { notifyUser } from '../lib/notify.js'
 import {
   Booking,
   BookingsQuery,
@@ -9,11 +19,68 @@ import {
   ErrorResponses,
   HttpError,
   IdParams,
+  UpdateBookingBody,
   UpdateBookingStatusBody,
 } from '../types.js'
 
+/** Подходит и для app.prisma, и для клиента внутри $transaction. */
+type BookingDb = Pick<PrismaClient, 'booking'>
+
+/** Бросает 409, если в аудитории уже есть активная бронь, пересекающаяся с интервалом. */
+async function ensureSlotFree(
+  db: BookingDb,
+  roomId: string,
+  startsAt: Date,
+  endsAt: Date,
+  excludeId?: string
+): Promise<void> {
+  const overlap = await db.booking.findFirst({
+    where: {
+      roomId,
+      ...(excludeId !== undefined ? { id: { not: excludeId } } : {}),
+      status: { code: { notIn: FREE_BOOKING_STATUSES } },
+      startsAt: { lt: endsAt },
+      endsAt: { gt: startsAt },
+    },
+    select: { id: true },
+  })
+  if (overlap) throw new HttpError(409, 'Это время уже занято другим бронированием')
+}
+
+/*
+ * Права:
+ *  - USER:  видит, создаёт и отменяет только собственные брони;
+ *  - ADMIN: видит брони любого пользователя, создаёт брони от имени пользователя,
+ *           редактирует (аудитория, дата, время, цель), меняет статус, отменяет (удаляет) любые брони.
+ */
 const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
-  // Список броней: обычный пользователь видит свои, администратор — свои или все (?all=true)
+  async function loadBooking(id: string) {
+    const booking = await app.prisma.booking.findUnique({ where: { id }, include: bookingInclude })
+    if (!booking) throw new HttpError(404, 'Бронирование не найдено')
+    return booking
+  }
+
+  async function loadBookableRoom(code: string) {
+    const room = await app.prisma.room.findUnique({ where: { code }, include: { status: true } })
+    if (!room) throw new HttpError(404, 'Указанная аудитория не найдена')
+    if (room.status.code === 'maintenance') throw new HttpError(409, 'Аудитория находится на обслуживании')
+    return room
+  }
+
+  async function loadBookingStatus(code: string, httpStatus: number) {
+    const status = await app.prisma.bookingStatus.findUnique({ where: { code } })
+    if (!status) {
+      throw new HttpError(
+        httpStatus,
+        httpStatus === 400
+          ? `Неизвестный статус бронирования: ${code}`
+          : 'Справочник статусов бронирований не заполнен'
+      )
+    }
+    return status
+  }
+
+  // Список броней: свои; для администратора — ещё ?userId=... (брони пользователя) и ?all=true (все)
   app.get(
     '/api/bookings',
     {
@@ -28,11 +95,16 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
     },
     async (request) => {
       const auth = await requireUser(request)
-      const wantsAll = request.query.all === true
-      if (wantsAll && auth.role !== 'ADMIN') throw new HttpError(403, 'Insufficient privileges')
+      const { all, userId } = request.query
+
+      let ownerFilter: { userId?: string } = { userId: auth.sub }
+      if (all === true || userId !== undefined) {
+        if (auth.role !== 'ADMIN') throw new HttpError(403, 'Insufficient privileges')
+        ownerFilter = all === true ? {} : { userId }
+      }
 
       const bookings = await app.prisma.booking.findMany({
-        where: wantsAll ? {} : { userId: auth.sub },
+        where: ownerFilter,
         include: bookingInclude,
         orderBy: { startsAt: 'asc' },
       })
@@ -40,7 +112,28 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
     }
   )
 
-  // Создание брони
+  // Одна бронь: владелец или администратор
+  app.get(
+    '/api/bookings/:id',
+    {
+      schema: {
+        operationId: 'getBooking',
+        tags: ['Bookings'],
+        summary: 'Возвращает одно бронирование',
+        security: [{ bearerAuth: [] }],
+        params: IdParams,
+        response: { 200: Booking, ...ErrorResponses },
+      },
+    },
+    async (request) => {
+      const auth = await requireUser(request)
+      const booking = await loadBooking(request.params.id)
+      if (auth.role !== 'ADMIN' && booking.userId !== auth.sub) throw new HttpError(403, 'Insufficient privileges')
+      return toBookingDto(booking)
+    }
+  )
+
+  // Создание брони: пользователь — для себя, администратор — для себя или любого пользователя (userId)
   app.post(
     '/api/bookings',
     {
@@ -55,32 +148,27 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
     },
     async (request, reply) => {
       const auth = await requireUser(request)
-      const { roomCode, date, timeStart, timeEnd, purpose } = request.body
+      const { roomCode, date, timeStart, timeEnd, purpose, userId } = request.body
       const { startsAt, endsAt } = parseSlot(date, timeStart, timeEnd)
 
-      const room = await app.prisma.room.findFirst({ where: { code: roomCode }, include: { status: true } })
-      if (!room) throw new HttpError(404, 'Указанная аудитория не найдена')
-      if (room.status.code === 'maintenance') throw new HttpError(409, 'Аудитория находится на обслуживании')
+      let ownerId = auth.sub
+      if (userId !== undefined && userId !== auth.sub) {
+        if (auth.role !== 'ADMIN') throw new HttpError(403, 'Insufficient privileges')
+        const owner = await app.prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
+        if (!owner) throw new HttpError(404, 'Пользователь не найден')
+        ownerId = owner.id
+      }
 
-      const confirmed = await app.prisma.bookingStatus.findUnique({ where: { code: 'confirmed' } })
-      if (!confirmed) throw new HttpError(500, 'Справочник статусов бронирований не заполнен')
+      const room = await loadBookableRoom(roomCode)
+      const confirmed = await loadBookingStatus('confirmed', 500)
 
-      const created = await app.prisma.$transaction(async (tx: any) => {
-        const overlap = await tx.booking.findFirst({
-          where: {
-            roomId: room.id,
-            status: { code: { notIn: FREE_BOOKING_STATUSES } },
-            startsAt: { lt: endsAt },
-            endsAt: { gt: startsAt },
-          },
-          select: { id: true },
-        })
-        if (overlap) throw new HttpError(409, 'Это время уже занято другим бронированием')
+      const created = await app.prisma.$transaction(async (tx) => {
+        await ensureSlotFree(tx, room.id, startsAt, endsAt)
 
         const booking = await tx.booking.create({
           data: {
             roomId: room.id,
-            userId: auth.sub,
+            userId: ownerId,
             statusId: confirmed.id,
             startsAt,
             endsAt,
@@ -89,14 +177,12 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
           include: bookingInclude,
         })
 
-        await tx.notification.create({
-          data: {
-            userId: auth.sub,
-            bookingId: booking.id,
-            type: 'BOOKING_CREATED',
-            title: 'Бронирование создано',
-            message: `Аудитория ${room.code} (${room.name}) забронирована на ${date}, ${formatTime(startsAt)} – ${formatTime(endsAt)}.`,
-          },
+        await notifyUser(tx, {
+          userId: ownerId,
+          bookingId: booking.id,
+          type: 'BOOKING_CREATED',
+          title: 'Бронирование создано',
+          message: `Аудитория ${room.code} (${room.name}) забронирована на ${date}, ${formatTime(startsAt)} – ${formatTime(endsAt)}.`,
         })
 
         return booking
@@ -104,6 +190,62 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
 
       reply.code(201)
       return toBookingDto(created)
+    }
+  )
+
+  // Редактирование брони (ADMIN): аудитория, дата, время, цель. Передаются только изменяемые поля.
+  app.put(
+    '/api/bookings/:id',
+    {
+      schema: {
+        operationId: 'updateBooking',
+        tags: ['Bookings'],
+        summary: 'Изменить бронирование: аудитория, дата, время, цель (ADMIN)',
+        security: [{ bearerAuth: [] }],
+        params: IdParams,
+        body: UpdateBookingBody,
+        response: { 200: Booking, ...ErrorResponses },
+      },
+    },
+    async (request) => {
+      await requireAdmin(request)
+      const body = request.body
+      const existing = await loadBooking(request.params.id)
+
+      const date = body.date ?? dateOf(existing.startsAt)
+      const timeStart = body.timeStart ?? timeOf(existing.startsAt)
+      const timeEnd = body.timeEnd ?? timeOf(existing.endsAt)
+      const { startsAt, endsAt } = parseSlot(date, timeStart, timeEnd)
+
+      let roomId = existing.roomId
+      if (body.roomCode !== undefined && body.roomCode !== existing.room.code) {
+        roomId = (await loadBookableRoom(body.roomCode)).id
+      }
+
+      const updated = await app.prisma.$transaction(async (tx) => {
+        // Отменённая или отклонённая бронь аудиторию не занимает, поэтому конфликт проверяем только у активных
+        if (!FREE_BOOKING_STATUSES.includes(existing.status.code)) {
+          await ensureSlotFree(tx, roomId, startsAt, endsAt, existing.id)
+        }
+
+        const booking = await tx.booking.update({
+          where: { id: existing.id },
+          data: { roomId, startsAt, endsAt, purpose: body.purpose },
+          include: bookingInclude,
+        })
+
+        await notifyUser(tx, {
+          userId: booking.userId,
+          bookingId: booking.id,
+          type: 'BOOKING_UPDATED',
+          title: 'Бронирование изменено',
+          message: `Администратор изменил бронирование: аудитория ${booking.room.code}, ${date}, ${timeStart} – ${timeEnd}.`,
+        })
+
+        return booking
+      })
+
+      return toBookingDto(updated)
     }
   )
 
@@ -123,25 +265,21 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
     },
     async (request) => {
       await requireAdmin(request)
+      const status = await loadBookingStatus(request.body.status, 400)
 
-      const status = await app.prisma.bookingStatus.findUnique({ where: { code: request.body.status } })
-      if (!status) throw new HttpError(400, `Неизвестный статус бронирования: ${request.body.status}`)
-
-      const updated = await app.prisma.$transaction(async (tx: any) => {
+      const updated = await app.prisma.$transaction(async (tx) => {
         const booking = await tx.booking.update({
           where: { id: request.params.id },
           data: { statusId: status.id },
           include: bookingInclude,
         })
 
-        await tx.notification.create({
-          data: {
-            userId: booking.userId,
-            bookingId: booking.id,
-            type: 'BOOKING_STATUS_CHANGED',
-            title: 'Статус бронирования изменён',
-            message: `Бронирование аудитории ${booking.room.code} на ${booking.startsAt.toISOString().slice(0, 10)} теперь имеет статус «${status.name}».`,
-          },
+        await notifyUser(tx, {
+          userId: booking.userId,
+          bookingId: booking.id,
+          type: 'BOOKING_STATUS_CHANGED',
+          title: 'Статус бронирования изменён',
+          message: `Бронирование аудитории ${booking.room.code} на ${dateOf(booking.startsAt)} теперь имеет статус «${status.name}».`,
         })
 
         return booking
@@ -151,14 +289,15 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
     }
   )
 
-  // Отмена брони: владелец или администратор. Запись сохраняется со статусом «cancelled».
+  // Отмена и удаление — одно действие: владелец или администратор.
+  // Запись остаётся в истории со статусом «cancelled», аудитория освобождается, владелец получает уведомление.
   app.delete(
     '/api/bookings/:id',
     {
       schema: {
         operationId: 'cancelBooking',
         tags: ['Bookings'],
-        summary: 'Отменить бронирование',
+        summary: 'Отменить (удалить) бронирование: владелец или ADMIN',
         security: [{ bearerAuth: [] }],
         params: IdParams,
         response: { 204: T.Null({ description: 'Бронирование отменено' }), ...ErrorResponses },
@@ -166,30 +305,26 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
     },
     async (request, reply) => {
       const auth = await requireUser(request)
-
-      const booking = await app.prisma.booking.findUnique({ where: { id: request.params.id }, include: bookingInclude })
-      if (!booking) throw new HttpError(404, 'Бронирование не найдено')
+      const booking = await loadBooking(request.params.id)
       if (auth.role !== 'ADMIN' && booking.userId !== auth.sub) throw new HttpError(403, 'Insufficient privileges')
 
       if (booking.status.code !== 'cancelled') {
-        const cancelled = await app.prisma.bookingStatus.findUnique({ where: { code: 'cancelled' } })
-        if (!cancelled) throw new HttpError(500, 'Справочник статусов бронирований не заполнен')
+        const cancelled = await loadBookingStatus('cancelled', 500)
+        const byAdmin = auth.sub !== booking.userId
 
-        await app.prisma.$transaction(async (tx: any) => {
+        await app.prisma.$transaction(async (tx) => {
           await tx.booking.update({ where: { id: booking.id }, data: { statusId: cancelled.id } })
-          await tx.notification.create({
-            data: {
-              userId: booking.userId,
-              bookingId: booking.id,
-              type: 'BOOKING_CANCELLED',
-              title: 'Бронирование отменено',
-              message: `Бронирование аудитории ${booking.room.code} на ${booking.startsAt.toISOString().slice(0, 10)} отменено.`,
-            },
+          await notifyUser(tx, {
+            userId: booking.userId,
+            bookingId: booking.id,
+            type: 'BOOKING_CANCELLED',
+            title: 'Бронирование отменено',
+            message: `Бронирование аудитории ${booking.room.code} на ${dateOf(booking.startsAt)} отменено${byAdmin ? ' администратором' : ''}.`,
           })
         })
       }
 
-      return reply.code(204).send(null);
+      return reply.code(204).send(null)
     }
   )
 }

@@ -18,9 +18,9 @@ const roomRoutes: FastifyPluginAsyncTypebox = async (app) => {
   async function resolveEquipmentIds(codes: string[]): Promise<number[]> {
     const unique = [...new Set(codes)]
     const found = await app.prisma.equipment.findMany({ where: { code: { in: unique } } })
-    const missing = unique.filter((code) => !found.some((item: any) => item.code === code));
+    const missing = unique.filter((code) => !found.some((item) => item.code === code));
     if (missing.length > 0) throw new HttpError(400, `Неизвестное оборудование: ${missing.join(', ')}`);
-    return found.map((item: any) => item.id);
+    return found.map((item) => item.id);
   }
 
   async function resolveRoomStatusId(code: string): Promise<number> {
@@ -95,7 +95,7 @@ const roomRoutes: FastifyPluginAsyncTypebox = async (app) => {
         orderBy: { startsAt: 'asc' },
       })
 
-      return bookings.map((b: any) => ({
+      return bookings.map((b) => ({
         bookingId: b.id,
         from: formatTime(b.startsAt),
         to: formatTime(b.endsAt),

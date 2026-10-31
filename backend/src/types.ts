@@ -111,6 +111,12 @@ export const AuthResponse = T.Object({
 })
 export type AuthResponse = Static<typeof AuthResponse>
 
+export const ChangePasswordBody = T.Object({
+  currentPassword: T.String({ description: 'Текущий пароль' }),
+  newPassword: T.String({ minLength: 6, description: 'Новый пароль (не короче 6 символов)' }),
+})
+export type ChangePasswordBody = Static<typeof ChangePasswordBody>
+
 export const ChangeRoleBody = T.Object({ role: Role })
 export type ChangeRoleBody = Static<typeof ChangeRoleBody>
 
@@ -193,6 +199,8 @@ export const Booking = T.Object({
   status: T.String({ description: 'Код статуса брони (pending, confirmed, rejected, cancelled, completed)' }),
   purpose: T.Optional(T.String({ description: 'Цель бронирования' })),
   userId: T.String({ description: 'Идентификатор пользователя, создавшего бронь' }),
+  userEmail: T.Optional(T.String({ description: 'Почта владельца брони' })),
+  userName: T.Optional(T.String({ description: 'Имя владельца брони' })),
 })
 export type Booking = Static<typeof Booking>
 
@@ -203,13 +211,24 @@ export const CreateBookingBody = T.Object({
   timeStart: T.String({ pattern: '^\\d{2}:\\d{2}$', description: 'Время начала встречи (например, 10:00)' }),
   timeEnd: T.String({ pattern: '^\\d{2}:\\d{2}$', description: 'Время окончания встречи (например, 12:00)' }),
   purpose: T.Optional(T.String({ description: 'Цель бронирования' })),
+  userId: T.Optional(T.String({ description: 'Только для ADMIN: создать бронь от имени другого пользователя' })),
 })
 export type CreateBookingBody = Static<typeof CreateBookingBody>
 
 export const BookingsQuery = T.Object({
   all: T.Optional(T.Boolean({ description: 'Только для ADMIN: вернуть брони всех пользователей' })),
+  userId: T.Optional(T.String({ description: 'Только для ADMIN: вернуть брони конкретного пользователя' })),
 })
 export type BookingsQuery = Static<typeof BookingsQuery>
+
+export const UpdateBookingBody = T.Object({
+  roomCode: T.Optional(T.String({ description: 'Перенести бронь в другую аудиторию (код)' })),
+  date: T.Optional(T.String({ pattern: '^\\d{4}-\\d{2}-\\d{2}$', description: 'Новая дата (ГГГГ-ММ-ДД)' })),
+  timeStart: T.Optional(T.String({ pattern: '^\\d{2}:\\d{2}$', description: 'Новое время начала' })),
+  timeEnd: T.Optional(T.String({ pattern: '^\\d{2}:\\d{2}$', description: 'Новое время окончания' })),
+  purpose: T.Optional(T.String({ description: 'Новая цель бронирования' })),
+})
+export type UpdateBookingBody = Static<typeof UpdateBookingBody>
 
 export const UpdateBookingStatusBody = T.Object({
   status: T.String({ description: 'Код нового статуса брони' }),
@@ -220,7 +239,7 @@ export type UpdateBookingStatusBody = Static<typeof UpdateBookingStatusBody>
 
 export const Notification = T.Object({
   id: T.String(),
-  type: T.String({ description: 'BOOKING_CREATED, BOOKING_CANCELLED, BOOKING_STATUS_CHANGED или SYSTEM' }),
+  type: T.String({ description: 'BOOKING_CREATED, BOOKING_CANCELLED, BOOKING_STATUS_CHANGED, BOOKING_UPDATED или SYSTEM' }),
   title: T.String(),
   message: T.String(),
   isRead: T.Boolean(),
@@ -228,6 +247,36 @@ export const Notification = T.Object({
   createdAt: T.String({ description: 'Дата создания (ISO 8601)' }),
 })
 export type Notification = Static<typeof Notification>
+
+export const NotificationSettings = T.Object({
+  notifyBooking: T.Boolean({ description: 'Уведомления о бронированиях' }),
+  notifyEmail: T.Boolean({ description: 'Дублировать уведомления на почту' }),
+})
+export type NotificationSettings = Static<typeof NotificationSettings>
+
+export const UpdateNotificationSettingsBody = T.Object({
+  notifyBooking: T.Optional(T.Boolean()),
+  notifyEmail: T.Optional(T.Boolean()),
+})
+export type UpdateNotificationSettingsBody = Static<typeof UpdateNotificationSettingsBody>
+
+export const SendNotificationBody = T.Object({
+  userId: T.Optional(T.String({ description: 'Получатель. Если не указан — всем пользователям' })),
+  title: T.String({ minLength: 1, description: 'Заголовок' }),
+  message: T.String({ minLength: 1, description: 'Текст уведомления' }),
+})
+export type SendNotificationBody = Static<typeof SendNotificationBody>
+
+export const ClearNotificationsQuery = T.Object({
+  onlyRead: T.Optional(T.Boolean({ description: 'Удалить только прочитанные' })),
+})
+export type ClearNotificationsQuery = Static<typeof ClearNotificationsQuery>
+
+export const DeletedCount = T.Object({ deleted: T.Integer() })
+export type DeletedCount = Static<typeof DeletedCount>
+
+export const CreatedCount = T.Object({ created: T.Integer() })
+export type CreatedCount = Static<typeof CreatedCount>
 
 export const NotificationsQuery = T.Object({
   unread: T.Optional(T.Boolean({ description: 'Вернуть только непрочитанные' })),

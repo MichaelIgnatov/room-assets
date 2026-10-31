@@ -38,6 +38,7 @@ export const FREE_BOOKING_STATUSES = ['cancelled', 'rejected']
 export const bookingInclude = {
   room: { select: { code: true, name: true } },
   status: { select: { code: true } },
+  user: { select: { email: true, name: true } },
 } as const
 
 export interface BookingRow {
@@ -49,11 +50,12 @@ export interface BookingRow {
   purpose: string | null
   room: { code: string; name: string }
   status: { code: string }
+  user: { email: string; name: string | null }
 }
 
 // Время хранится «как введено» (UTC без пересчёта часовых поясов), поэтому и читаем его как UTC.
-const dateOf = (d: Date): string => d.toISOString().slice(0, 10)
-const timeOf = (d: Date): string => d.toISOString().slice(11, 16)
+export const dateOf = (d: Date): string => d.toISOString().slice(0, 10)
+export const timeOf = (d: Date): string => d.toISOString().slice(11, 16)
 
 export function toBookingDto(row: BookingRow): Booking {
   const timeStart = timeOf(row.startsAt)
@@ -70,6 +72,8 @@ export function toBookingDto(row: BookingRow): Booking {
     status: row.status.code,
     purpose: row.purpose ?? undefined,
     userId: row.userId,
+    userEmail: row.user.email,
+    userName: row.user.name ?? undefined,
   }
 }
 

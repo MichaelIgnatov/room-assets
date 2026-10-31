@@ -102,7 +102,7 @@ async function main(): Promise<void> {
     // Аудитории
     for (const room of ROOMS) {
       await prisma.room.upsert({
-        where: { id: room.code },
+        where: { code: room.code },
         update: {},
         create: {
           id: room.code,

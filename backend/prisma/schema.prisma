@@ -10,7 +10,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  uurl      = "postgresql://postgres:postgres@db:5432/room_assets?schema=public"
 }
 
 // Перечисления
@@ -24,6 +23,7 @@ datasource db {
   BOOKING_CREATED
   BOOKING_CANCELLED
   BOOKING_STATUS_CHANGED
+  BOOKING_UPDATED
   SYSTEM
  }
 
@@ -36,6 +36,9 @@ model User {
   name         String?
   passwordHash String
   role         Role     @default(USER)
+  // Настройки уведомлений (страница «Настройки аккаунта»)
+  notifyBooking Boolean @default(true)
+  notifyEmail   Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -83,7 +86,7 @@ model Equipment {
 
 model Room {
   id          String   @id @default(cuid())
-  code        String
+  code        String   @unique
   name        String
   capacity    Int
   description String?

@@ -265,10 +265,10 @@ export type RoomOrderByWithRelationInput = {
 
 export type RoomWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  code?: string
   AND?: Prisma.RoomWhereInput | Prisma.RoomWhereInput[]
   OR?: Prisma.RoomWhereInput[]
   NOT?: Prisma.RoomWhereInput | Prisma.RoomWhereInput[]
-  code?: Prisma.StringFilter<"Room"> | string
   name?: Prisma.StringFilter<"Room"> | string
   capacity?: Prisma.IntFilter<"Room"> | number
   description?: Prisma.StringNullableFilter<"Room"> | string | null
@@ -278,7 +278,7 @@ export type RoomWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.XOR<Prisma.RoomStatusScalarRelationFilter, Prisma.RoomStatusWhereInput>
   equipment?: Prisma.RoomEquipmentListRelationFilter
   bookings?: Prisma.BookingListRelationFilter
-}, "id">
+}, "id" | "code">
 
 export type RoomOrderByWithAggregationInput = {
   id?: Prisma.SortOrder

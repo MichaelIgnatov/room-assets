@@ -2,7 +2,7 @@ import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox'
 import { Type as T } from '@sinclair/typebox'
 import { requireAdmin } from '../lib/auth.js'
 import { toUserDto } from '../lib/mappers.js'
-import { ChangeRoleBody, ErrorResponses, IdParams, User } from '../types.js'
+import { ChangeRoleBody, ErrorResponses, HttpError, IdParams, User } from '../types.js'
 
 // Управление пользователями — только для администратора
 const userRoutes: FastifyPluginAsyncTypebox = async (app) => {
@@ -38,7 +38,10 @@ const userRoutes: FastifyPluginAsyncTypebox = async (app) => {
       },
     },
     async (request) => {
-      await requireAdmin(request)
+      const auth = await requireAdmin(request)
+      // Защита от блокировки: администратор не может понизить сам себя
+      if (auth.sub === request.params.id) throw new HttpError(400, 'Нельзя изменить собственную роль')
+
       const user = await app.prisma.user.update({
         where: { id: request.params.id },
         data: { role: request.body.role },
