@@ -46,7 +46,7 @@ jobs:
         run: npm run lint
 
       - name: Build
-        run: npm run build -- --base=/rooms/
+        run: npm run build -- --base=/roomsroom-assets/
 
       - name: Upload artifact for Pages
         uses: actions/upload-pages-artifact@v3
