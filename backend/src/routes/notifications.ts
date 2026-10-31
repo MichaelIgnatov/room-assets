@@ -2,6 +2,7 @@ import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox'
 import { Type as T } from '@sinclair/typebox'
 import { requireAdmin, requireUser } from '../lib/auth.js'
 import { toNotificationDto } from '../lib/mappers.js'
+import { buildNotificationMail } from '../lib/notify.js'
 import {
   ClearNotificationsQuery,
   CreatedCount,
@@ -218,7 +219,7 @@ const notificationRoutes: FastifyPluginAsyncTypebox = async (app) => {
 
       const recipients = await app.prisma.user.findMany({
         where: userId !== undefined ? { id: userId } : {},
-        select: { id: true },
+        select: { id: true, email: true, notifyEmail: true },
       })
       if (userId !== undefined && recipients.length === 0) throw new HttpError(404, 'Пользователь не найден')
 
@@ -230,6 +231,11 @@ const notificationRoutes: FastifyPluginAsyncTypebox = async (app) => {
           message,
         })),
       })
+
+      // Письма уходят только тем, кто включил email-уведомления; ошибки SMTP не влияют на ответ
+      for (const recipient of recipients) {
+        if (recipient.notifyEmail) void app.mailer.send(buildNotificationMail(recipient.email, title, message))
+      }
 
       reply.code(201)
       return { created: result.count }

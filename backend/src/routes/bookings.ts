@@ -177,7 +177,7 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
           include: bookingInclude,
         })
 
-        await notifyUser(tx, {
+        const mail = await notifyUser(tx, {
           userId: ownerId,
           bookingId: booking.id,
           type: 'BOOKING_CREATED',
@@ -185,11 +185,12 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
           message: `Аудитория ${room.code} (${room.name}) забронирована на ${date}, ${formatTime(startsAt)} – ${formatTime(endsAt)}.`,
         })
 
-        return booking
+        return { booking, mail }
       })
 
+      void app.mailer.send(created.mail)
       reply.code(201)
-      return toBookingDto(created)
+      return toBookingDto(created.booking)
     }
   )
 
@@ -234,7 +235,7 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
           include: bookingInclude,
         })
 
-        await notifyUser(tx, {
+        const mail = await notifyUser(tx, {
           userId: booking.userId,
           bookingId: booking.id,
           type: 'BOOKING_UPDATED',
@@ -242,10 +243,11 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
           message: `Администратор изменил бронирование: аудитория ${booking.room.code}, ${date}, ${timeStart} – ${timeEnd}.`,
         })
 
-        return booking
+        return { booking, mail }
       })
 
-      return toBookingDto(updated)
+      void app.mailer.send(updated.mail)
+      return toBookingDto(updated.booking)
     }
   )
 
@@ -274,7 +276,7 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
           include: bookingInclude,
         })
 
-        await notifyUser(tx, {
+        const mail = await notifyUser(tx, {
           userId: booking.userId,
           bookingId: booking.id,
           type: 'BOOKING_STATUS_CHANGED',
@@ -282,10 +284,11 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
           message: `Бронирование аудитории ${booking.room.code} на ${dateOf(booking.startsAt)} теперь имеет статус «${status.name}».`,
         })
 
-        return booking
+        return { booking, mail }
       })
 
-      return toBookingDto(updated)
+      void app.mailer.send(updated.mail)
+      return toBookingDto(updated.booking)
     }
   )
 
@@ -312,9 +315,9 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
         const cancelled = await loadBookingStatus('cancelled', 500)
         const byAdmin = auth.sub !== booking.userId
 
-        await app.prisma.$transaction(async (tx) => {
+        const mail = await app.prisma.$transaction(async (tx) => {
           await tx.booking.update({ where: { id: booking.id }, data: { statusId: cancelled.id } })
-          await notifyUser(tx, {
+          return notifyUser(tx, {
             userId: booking.userId,
             bookingId: booking.id,
             type: 'BOOKING_CANCELLED',
@@ -322,6 +325,7 @@ const bookingRoutes: FastifyPluginAsyncTypebox = async (app) => {
             message: `Бронирование аудитории ${booking.room.code} на ${dateOf(booking.startsAt)} отменено${byAdmin ? ' администратором' : ''}.`,
           })
         })
+        void app.mailer.send(mail)
       }
 
       return reply.code(204).send(null)

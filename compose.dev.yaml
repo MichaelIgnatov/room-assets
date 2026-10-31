@@ -27,8 +27,21 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: dev
+    environment:
+      NODE_ENV: development
+      # Фиксированный секрет, чтобы горячая перезагрузка (tsx watch) не разлогинивала пользователей.
+      # Для реального окружения задайте JWT_SECRET в .env.
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
+      CHOKIDAR_USEPOLLING: "true"
     volumes:
-      # bind-mount исходников — tsx watch перезапускает сервер без пересборки образа
-      - ./backend:/app
-      # анонимный том, чтобы node_modules образа не затирались папкой хоста
-      - /app/node_modules
+      # Монтируем только исходники и миграции. node_modules НЕ монтируем: они всегда берутся из образа,
+      # поэтому после изменения package.json достаточно пересобрать образ (up --build).
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+      - ./backend/prisma.config.ts:/app/prisma.config.ts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 40s

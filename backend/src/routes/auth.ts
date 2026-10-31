@@ -108,13 +108,14 @@ const authRoutes: FastifyPluginAsyncTypebox = async (app) => {
       if (!verifyPassword(currentPassword, user.passwordHash)) throw new HttpError(400, 'Неверный текущий пароль')
 
       await app.prisma.user.update({ where: { id: user.id }, data: { passwordHash: hashPassword(newPassword) } })
-      await notifyUser(app.prisma, {
+      const mail = await notifyUser(app.prisma, {
         userId: user.id,
         type: 'SYSTEM',
         title: 'Пароль изменён',
         message: 'Пароль вашей учётной записи был изменён. Если это были не вы, обратитесь к администратору.',
       })
 
+      void app.mailer.send(mail)
       return reply.code(204).send(null)
     }
   )

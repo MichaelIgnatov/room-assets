@@ -1,14 +1,25 @@
 # Базовые якоря
-x-env-file: &env_file [.env]
+# Файл .env необязателен: без него используются значения по умолчанию (см. ${VAR:-default} ниже)
+x-env-file: &env_file
+  - path: .env
+    required: false
 
 x-db-env: &db_env
-  POSTGRES_DB: ${POSTGRES_DB}
-  POSTGRES_USER: ${POSTGRES_USER}
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  POSTGRES_DB: ${POSTGRES_DB:-room_assets}
+  POSTGRES_USER: ${POSTGRES_USER:-room_assets}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-room_assets}
 
 x-fastify-env: &fastify_env
-  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+  DATABASE_URL: postgresql://${POSTGRES_USER:-room_assets}:${POSTGRES_PASSWORD:-room_assets}@db:5432/${POSTGRES_DB:-room_assets}?schema=public
   PORT: "3000"
+  # Почта: по умолчанию письма уходят в SMTP-заглушку mailpit (веб-интерфейс http://localhost:8025).
+  # Для реального SMTP задайте SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD, MAIL_FROM в .env
+  SMTP_HOST: ${SMTP_HOST:-mailpit}
+  SMTP_PORT: ${SMTP_PORT:-1025}
+  SMTP_SECURE: ${SMTP_SECURE:-false}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  MAIL_FROM: "${MAIL_FROM:-Room & Assets <no-reply@room-assets.local>}"
 
 x-db-healthy: &db_healthy
   depends_on:
@@ -22,7 +33,7 @@ services:
     environment: *db_env
     volumes: [ "db_data:/var/lib/postgresql/data" ]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-room_assets} -d ${POSTGRES_DB:-room_assets}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -36,6 +47,12 @@ services:
       # target задаётся в override-файлах (dev/prod)
     environment: *fastify_env
     expose: ["3000"]
+
+  mailpit:
+    # SMTP-заглушка для разработки: принимает все письма и показывает их в веб-интерфейсе
+    image: axllent/mailpit:latest
+    ports: ["8025:8025"]
+    expose: ["1025"]
 
   scalar:
     # для учебного стенда оставляем :latest — на проде лучше пинить конкретный SHA-дайджест

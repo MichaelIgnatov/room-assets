@@ -7,6 +7,7 @@ import swagger from '@fastify/swagger'
 import { STATUS_CODES } from 'node:http'
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox'
 import prismaPlugin from './plugins/prisma.js'
+import mailerPlugin from './plugins/mailer.js'
 import { resolveJwtSecret } from './lib/auth.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
@@ -114,6 +115,7 @@ export async function buildApp() {
   await app.register(jwt, { secret })
 
   await app.register(prismaPlugin)
+  await app.register(mailerPlugin)
 
   // Глобальные обработчики ошибок
 
