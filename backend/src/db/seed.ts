@@ -1,7 +1,6 @@
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../generated/prisma/client.js'
 import { hashPassword } from '../lib/password.js'
-
 /**
  * Идемпотентное заполнение БД: справочники обновляются, демо-данные создаются только если их ещё нет.
  * Запуск: npm run db:seed (в Docker выполняется автоматически после миграций).
@@ -85,7 +84,7 @@ async function main(): Promise<void> {
         email: 'admin@example.com',
         name: 'Администратор',
         role: 'ADMIN',
-        passwordHash: hashPassword(process.env.SEED_ADMIN_PASSWORD ?? 'admin123'),
+        passwordHash: hashPassword('admin123'),
       },
     })
     const user = await prisma.user.upsert({
@@ -95,7 +94,18 @@ async function main(): Promise<void> {
         email: 'user@example.com',
         name: 'Иван Иванов',
         role: 'USER',
-        passwordHash: hashPassword(process.env.SEED_USER_PASSWORD ?? 'user123'),
+        passwordHash: hashPassword('user123'),
+      },
+    })
+
+    await prisma.user.upsert({
+      where: { email: 'test@example.com' },
+      update: {},
+      create: {
+        email: 'test@example.com',
+        name: 'Сергей Сергеев',
+        role: 'USER',
+        passwordHash: hashPassword('user123'),
       },
     })
 

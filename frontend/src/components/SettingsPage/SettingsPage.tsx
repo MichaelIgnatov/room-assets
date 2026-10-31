@@ -7,12 +7,56 @@ import { getInitials } from "../Header/header.utils";
 import styles from "./SettingsPage.module.css";
 
 export function SettingsPage() {
-  const { user } = useAuth(); 
+  // Вытаскиваем метод signOut из контекста
+  const { user, signOut } = useAuth(); 
   const { themeMode, setThemeMode } = useAppTheme();
+  
   const [notifyBooking, setNotifyBooking] = useState(true);
   const [notifyEmail, setNotifyEmail] = useState(false);
+  
+  // Стейты для смены пароля
+  const [password, setPassword] = useState("");
+  const [submittingPassword, setSubmittingPassword] = useState(false);
 
   const initials = user?.name ? getInitials(user.name) : "??";
+
+  // Обработчик обновления пароля
+  const handleChangePassword = async () => {
+    if (!password.trim()) {
+      alert("Пароль не может быть пустым");
+      return;
+    }
+    if (password.length < 6) {
+      alert("Пароль должен быть не менее 6 символов");
+      return;
+    }
+
+    setSubmittingPassword(true);
+    try {
+      const token = localStorage.getItem("rb:token");
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ password }),
+      });
+
+      if (response.ok) {
+        alert("Пароль успешно обновлен!");
+        setPassword("");
+      } else {
+        const data = await response.json();
+        alert(data.message || "Ошибка при смене пароля");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Не удалось связаться с сервером");
+    } finally {
+      setSubmittingPassword(false);
+    }
+  };
 
   return (
     <Box className={styles.cardBlock} sx={{ textAlign: "left", bgcolor: "background.paper", color: "text.primary", border: 1, borderColor: "divider", boxShadow: 1 }}>
@@ -28,22 +72,21 @@ export function SettingsPage() {
         </Typography>
         
         <Box className={styles.profileRow}>
-          {/* Динамический аватар */}
           <Avatar sx={{ width: 72, height: 72, bgcolor: "primary.main", color: "primary.contrastText", fontSize: 24, fontWeight: 600 }}>
             {initials}
           </Avatar>
           
           <Box className={styles.profileInfo}>
-            {/* Динамическое имя пользователя */}
             <Typography variant="h6" sx={{ fontWeight: 600, color: "text.primary" }}>
               {user?.name || "Имя не указано"}
             </Typography>
-            {/* Динамический Email  */}
+            {/* Выводим реальный Email из базы данных */}
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              {"email@example.com"}
+              {user?.email || "email@example.com"}
             </Typography>
+            {/* Выводим реальную роль из базы данных */}
             <Typography variant="caption" sx={{ mt: 0.5, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12), color: "primary.main", px: 1.5, py: 0.5, borderRadius: 1, fontWeight: 600, alignSelf: "flex-start" }}>
-              Роль: Пользователь
+              Роль: {user?.role === "ADMIN" ? "Администратор" : "Пользователь"}
             </Typography>
           </Box>
         </Box>
@@ -114,7 +157,7 @@ export function SettingsPage() {
           />
           <FormControlLabel
             control={<Switch checked={notifyEmail} onChange={(e) => setNotifyEmail(e.target.checked)} color="primary" size="small" />}
-            label={<Typography variant="body2">Получать отчёты и уведомления на почту email</Typography>}
+            label={<Typography variant="body2">Получать отчёты и уведомления на почту</Typography>}
           />
         </Stack>
       </Box>
@@ -134,9 +177,24 @@ export function SettingsPage() {
         </Typography>
 
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ maxWidth: 600, mt: 2 }}>
-          <TextField label="Новый пароль" type="password" size="small" fullWidth placeholder="••••••••" />
-          <Button variant="outlined" color="primary" sx={{ textTransform: "none", fontWeight: 600, height: 40, width: 180, minWidth: 180 }}>
-            Обновить пароль
+          <TextField 
+            label="Новый пароль" 
+            type="password" 
+            size="small" 
+            fullWidth 
+            placeholder="••••••••" 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={submittingPassword}
+          />
+          <Button 
+            variant="contained" 
+            color="primary" 
+            sx={{ textTransform: "none", fontWeight: 600, height: 40, width: 180, minWidth: 180 }}
+            onClick={handleChangePassword}
+            disabled={submittingPassword}
+          >
+            {submittingPassword ? "Обновление..." : "Обновить пароль"}
           </Button>
         </Stack>
       </Box>    
@@ -150,7 +208,7 @@ export function SettingsPage() {
           color="error" 
           startIcon={<LogoutOutlined />}
           sx={{ textTransform: "none", fontWeight: 600 }}
-          onClick={() => console.log("Выход из системы")}
+          onClick={signOut} 
         >
           Выйти из аккаунта
         </Button>
@@ -159,4 +217,3 @@ export function SettingsPage() {
     </Box>
   );
 }
-

@@ -1,31 +1,66 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export interface UserBrief { id?: string; name?: string; avatarUrl?: string; }
+export interface UserBrief { 
+  id?: string; 
+  name?: string; 
+  avatarUrl?: string; 
+  email?: string; 
+  role?: "ADMIN" | "USER"; 
+}
+
 export interface AuthContextValue {
   user: UserBrief | null;
   isAuthenticated: boolean;
   loading: boolean;
-  signIn(profile: UserBrief): void | Promise<void>;
+  signIn(token: string): Promise<void>;
   signOut(): void | Promise<void>;
   update(patch: Partial<UserBrief>): void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const STORAGE_KEY = "rb:user";
+const TOKEN_KEY = "rb:token";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserBrief | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  // Функция для запроса профиля с реального бэкенда
+  const fetchProfile = async (token: string) => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setUser(JSON.parse(raw));
+      const response = await fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+      } else {
+        localStorage.removeItem(TOKEN_KEY);
+        setUser(null);
+      }
     } catch {
-      localStorage.removeItem(STORAGE_KEY);
-    } finally {
-      setLoading(false);
+      localStorage.removeItem(TOKEN_KEY);
+      setUser(null);
     }
+  };
+
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (token) {
+          await fetchProfile(token);
+        } else {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) setUser(JSON.parse(raw));
+        }
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initAuth();
   }, []);
 
   useEffect(() => {
@@ -34,8 +69,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem(STORAGE_KEY);
   }, [user, loading]);
 
-  const signIn = useCallback((profile: UserBrief) => setUser(profile), []);
-  const signOut = useCallback(() => setUser(null), []);
+  // Метод входа
+  const signIn = useCallback(async (token: string) => {
+    setLoading(true);
+    localStorage.setItem(TOKEN_KEY, token);
+    await fetchProfile(token);
+    setLoading(false);
+  }, []);
+
+  // Метод выхода
+  const signOut = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(STORAGE_KEY); // На всякий случай чистим и старый ключ
+    setUser(null);
+  }, []);
   const update = useCallback((p: Partial<UserBrief>) => setUser((u) => ({ ...(u ?? {}), ...p })), []);
 
   const value = useMemo<AuthContextValue>(

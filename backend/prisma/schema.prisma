@@ -36,7 +36,6 @@ model User {
   name         String?
   passwordHash String
   role         Role     @default(USER)
-  // Настройки уведомлений (страница «Настройки аккаунта»)
   notifyBooking Boolean @default(true)
   notifyEmail   Boolean @default(false)
   createdAt    DateTime @default(now())

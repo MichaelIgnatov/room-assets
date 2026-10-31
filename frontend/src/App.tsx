@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { Header } from "./components/Header";
-import { Container, Box } from "@mui/material";
+import { Container, Box, CircularProgress } from "@mui/material";
 import { RoomsTable } from './components/RoomsTable';
 import { CatalogFilters } from './components/CatalogFilters/CatalogFilters';
 import { Footer } from './components/Footer'; 
 import { SettingsPage } from './components/SettingsPage';
 import { BookingsManager } from './components/BookingsManager';
 import { type CatalogFiltersState } from './api/roomsApi';
+import LoginPage from './components/LoginPage/LoginPage';
+import { useAuth } from './context/auth';
 
 import './App.css'
 
-// Начальное состояние для сброса фильтров
 const initialFilters: CatalogFiltersState = {
   search: "",
   status: "all",
@@ -19,18 +20,31 @@ const initialFilters: CatalogFiltersState = {
 };
 
 function App() {
+  const { isAuthenticated, loading } = useAuth();
   const [active, setActive] = useState("catalog");
-  
-  // Единый стейт фильтрации для каталога
   const [filters, setFilters] = useState<CatalogFiltersState>(initialFilters);
 
   const handleResetFilters = () => {
     setFilters(initialFilters);
   };
 
+  // 1. Если идёт проверка JWT-токена в localStorage — показываем загрузку
+  if (loading) {
+    return (
+      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "background.default" }}>
+        <CircularProgress color="primary" />
+      </Box>
+    );
+  }
+
+  // 2. Если токена нет или он невалиден — принудительно рендерим только страницу входа
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  // 3. Если пользователь авторизован — отдаём основное приложение
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default", display: "flex", flexDirection: "column" }}>
-      {/* Шапка сайта */}
       <Header
         activeNavId={active}
         onNavigate={setActive}    
@@ -40,7 +54,6 @@ function App() {
       <Container maxWidth="lg">
         <Box sx={{ my: 4 }}>
           
-          {/* Вкладка "Каталог" */}
           {active === "catalog" && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               <CatalogFilters 
@@ -52,12 +65,10 @@ function App() {
             </Box>
           )}
 
-          {/* Вкладка "Управление бронированием" */}
           {active === "bookings" && (
             <BookingsManager />
           )}
 
-          {/* Вкладка "Настройки" */}
           {active === "settings" && (
             <SettingsPage />
           )}
@@ -67,11 +78,9 @@ function App() {
 
       <Box sx={{ flexGrow: 1 }} />
 
-      {/* Подвал сайта */}
       <Footer />
     </Box>
   )
 }
 
 export default App
-

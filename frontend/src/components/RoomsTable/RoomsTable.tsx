@@ -10,7 +10,7 @@ import {
   VisibilityOutlined, EditOutlined, DeleteOutlined, 
   Groups2Outlined, AccessTimeOutlined 
 } from "@mui/icons-material";
-import { type CatalogFiltersState, fetchRooms, type RoomDto } from "../../api/roomsApi";
+import { type CatalogFiltersState, type RoomDto } from "../../api/roomsApi";
 
 const STATUS_LABEL: Record<RoomDto["status"], string> = {
   available: "Доступна",
@@ -25,88 +25,111 @@ const STATUS_COLOR: Record<RoomDto["status"], "success" | "warning" | "default">
 };
 
 const EQUIP_LABEL: Record<string, string> = {
-  projector: "Проектор", microphone: "Микрофон", wifi: "Wi-Fi",
-  computers: "Компьютеры", board: "Доска",
-};
-
-const ROOMS_SCHEDULE: Record<string, Array<{ from: string; to: string; title: string }>> = {
-  "201": [
-    { from: "09:00", to: "11:00", title: "Защита проектов" },
-    { from: "14:00", to: "16:00", title: "Собрание кафедры" }
-  ],
-  "101": [
-    { from: "12:00", to: "13:30", title: "Лекция по ИС" }
-  ],
-  "102": [
-    { from: "08:00", to: "12:00", title: "Лабораторная" },
-    { from: "13:00", to: "17:00", title: "Олимпиада" }
-  ],
-  "202": [
-    { from: "00:00", to: "23:59", title: "Тех-обслуживание" }
-  ],
+  PROJECTOR: "Проектор", MICROPHONE: "Микрофон", WIFI: "Wi-Fi",
+  COMPUTERS: "Компьютеры", BOARD: "Доска",
 };
 
 interface RoomsTableProps {
   filters: CatalogFiltersState;
 }
 
-
 export function RoomsTable({ filters }: RoomsTableProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [items, setItems]     = useState<RoomDto[]>([]);
   const [expandedRoomId, setExpandedRoomId] = useState<string | null>(null);
-  const [scheduleDate, setScheduleDate] = useState("2026-10-25");
+  const [scheduleDate, setScheduleDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [roomIdToDelete, setRoomIdToDelete] = useState<string | null>(null);
+  
+  const [currentSchedule, setCurrentSchedule] = useState<Array<{ from: string; to: string; title: string }>>([]);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
+
+  const loadRooms = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("rb:token");
+      const response = await fetch("/api/rooms", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error("Не удалось загрузить каталог комнат");
+      const data = await response.json();
+      setItems(Array.isArray(data) ? data : data.rooms || []);
+    } catch (e) {
+      setError((e as Error).message || "Ошибка загрузки");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
+    loadRooms();
+  }, []);
+
+  useEffect(() => {
+    if (!expandedRoomId) return;
     let mounted = true;
     (async () => {
       try {
-        setLoading(true);
-        const data = await fetchRooms(1);
-        if (mounted) setItems(data.items);
-      } catch (e) {
-        if (mounted) setError((e as Error).message || "Ошибка загрузки");
+        setLoadingSchedule(true);
+        const token = localStorage.getItem("rb:token");
+        const response = await fetch(`/api/bookings?roomId=${expandedRoomId}&date=${scheduleDate}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.ok && mounted) {
+          const data = await response.json();
+          const bookings = Array.isArray(data) ? data : data.bookings || [];
+          setCurrentSchedule(bookings.map((b: any) => ({
+            from: b.startTime ? b.startTime.substring(11, 16) : "00:00",
+            to: b.endTime ? b.endTime.substring(11, 16) : "23:59",
+            title: b.title || `Бронь: ${b.user?.name || 'Пользователь'}`
+          })));
+        }
+      } catch (err) {
+        console.error("Ошибка загрузки расписания:", err);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) setLoadingSchedule(false);
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [expandedRoomId, scheduleDate]);
+
+  const handleDeleteConfirm = async () => {
+    if (!roomIdToDelete) return;
+    try {
+      const token = localStorage.getItem("rb:token");
+      const response = await fetch(`/api/rooms/${roomIdToDelete}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        setItems((prev) => prev.filter((item) => item.id !== roomIdToDelete));
+        setDeleteDialogOpen(false);
+        setRoomIdToDelete(null);
+      } else {
+        const errData = await response.json();
+        alert(errData.message || "Ошибка при удалении аудитории");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Не удалось связаться с сервером");
+    }
+  };
 
   const filteredItems = items?.filter((r) => {
-    // Поиск по коду или названию
     const matchesSearch =
       r.code.toLowerCase().includes(filters.search.toLowerCase()) ||
       r.name.toLowerCase().includes(filters.search.toLowerCase());
-    // Фильтр по статусу
     const matchesStatus = filters.status === "all" || r.status === filters.status;
-    // Фильтр по минимальной вместимости
-    const matchesCapacity =
-      !filters.capacity || r.capacity >= parseInt(filters.capacity, 10);
-    // Фильтр по галочкам оборудования
+    const matchesCapacity = !filters.capacity || r.capacity >= parseInt(filters.capacity, 10);
     const matchesEquipment = filters.selectedEquipment.every((equipId) =>
       r.equipment?.includes(equipId)
     );
     return matchesSearch && matchesStatus && matchesCapacity && matchesEquipment;
   });
 
-  const handleDeleteConfirm = () => {
-    if (roomIdToDelete) {
-      setItems((prevItems) => prevItems.filter((item) => item.id !== roomIdToDelete));
-      setDeleteDialogOpen(false);
-      setRoomIdToDelete(null);
-    }
-  };
-  
-
   if (loading) return <Box sx={{ p: 3, display: "grid", placeItems: "center" }}><CircularProgress /></Box>;
-  if (error)   return <Box sx={{ p: 3 }}><Typography color="error">{error}</Typography></Box>;
-
-  
-
+  if (error)   return <Box sx={{ p: 3, textAlign: "center" }}><Typography color="error">{error}</Typography></Box>;
   return (
     <Paper elevation={2} sx={{ borderRadius: 2, overflow: "hidden", border: 1, borderColor: "divider" }}>
       <Table>
@@ -121,10 +144,8 @@ export function RoomsTable({ filters }: RoomsTableProps) {
           </TableRow>
         </TableHead>
         <TableBody>
-          
           {filteredItems?.map((r) => {
             const isExpanded = expandedRoomId === r.id;
-            const currentSchedule = ROOMS_SCHEDULE[r.code] || [];
 
             return (
               <React.Fragment key={r.id}>
@@ -148,9 +169,9 @@ export function RoomsTable({ filters }: RoomsTableProps) {
                   </TableCell>
                   <TableCell sx={{ py: 2, verticalAlign: "middle" }}>
                     <Chip
-                      label={STATUS_LABEL[r.status]}
+                      label={STATUS_LABEL[r.status] || r.status}
                       size="small"
-                      color={STATUS_COLOR[r.status]}
+                      color={STATUS_COLOR[r.status] || "default"}
                       variant={r.status === "maintenance" ? "outlined" : "filled"}
                       sx={{ fontWeight: 500, borderRadius: 1.5 }}
                     />
@@ -169,7 +190,7 @@ export function RoomsTable({ filters }: RoomsTableProps) {
                           setRoomIdToDelete(r.id);
                           setDeleteDialogOpen(true); }}>
                         <DeleteOutlined fontSize="small" />
-                      </IconButton>
+                    </IconButton>
                   </TableCell>
                 </TableRow>
 
@@ -194,27 +215,29 @@ export function RoomsTable({ filters }: RoomsTableProps) {
                             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
                               Занятые промежутки времени:
                             </Typography>
-                            {currentSchedule.length === 0 ? (
+                            {loadingSchedule ? (
+                              <CircularProgress size={20} />
+                            ) : currentSchedule.length === 0 ? (
                               <Typography variant="body2" sx={{ color: "success.main", fontWeight: 500 }}>
                                 • В этот день аудитория полностью свободна для бронирования.
                               </Typography>
                             ) : (
                               <Stack spacing={1}>
-                                {currentSchedule?.map((slot, index) => (
+                                {currentSchedule.map((slot, index) => (
                                   <Box 
                                     key={index} 
                                     sx={{ 
                                       display: "flex", 
                                       alignItems: "center", 
                                       gap: 1.5, 
-                                      bgcolor: (theme) => alpha(r.status === "maintenance" ? theme.palette.error.main : theme.palette.warning.main, 0.12), 
+                                      bgcolor: (theme) => alpha(theme.palette.warning.main, 0.12), 
                                       p: 1, 
                                       borderRadius: 1.5, 
-                                      border: (theme) => `1px solid ${alpha(r.status === "maintenance" ? theme.palette.error.main : theme.palette.warning.main, 0.35)}`, 
+                                      border: (theme) => `1px solid ${alpha(theme.palette.warning.main, 0.35)}`, 
                                       maxWidth: 500 
                                     }}
                                   >
-                                    <AccessTimeOutlined fontSize="small" sx={{ color: r.status === "maintenance" ? "error.main" : "warning.main" }} />
+                                    <AccessTimeOutlined fontSize="small" sx={{ color: "warning.main" }} />
                                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                       {slot.from} - {slot.to}
                                     </Typography>
@@ -236,28 +259,15 @@ export function RoomsTable({ filters }: RoomsTableProps) {
           })}
         </TableBody>
       </Table>
-      {/* Всплывающее окно подтверждения удаления */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        aria-labelledby="delete-dialog-title"
-        aria-describedby="delete-dialog-description"
-      >
-        <DialogTitle id="delete-dialog-title" sx={{ fontWeight: 600 }}>
-          Подтверждение удаления
-        </DialogTitle>
+      
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle sx={{ fontWeight: 600 }}>Подтверждение удаления</DialogTitle>
         <DialogContent>
-          <DialogContentText id="delete-dialog-description">
-            Вы действительно хотите удалить эту аудиторию?
-          </DialogContentText>
+          <DialogContentText>Вы действительно хотите удалить эту аудиторию?</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 1 }}>
-          <Button onClick={() => setDeleteDialogOpen(false)} color="inherit" variant="outlined">
-            Отмена
-          </Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained" autoFocus>
-            Удалить
-          </Button>
+          <Button onClick={() => setDeleteDialogOpen(false)} color="inherit" variant="outlined">Отмена</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained" autoFocus>Удалить</Button>
         </DialogActions>
       </Dialog>
     </Paper>
