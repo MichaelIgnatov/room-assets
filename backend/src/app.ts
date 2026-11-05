@@ -54,7 +54,7 @@ export async function buildApp() {
 
   // Для dev открываем localhost фронтенда, чтобы CORS-запросы из браузера проходили.
   await app.register(cors, {
-    origin: ['https://michaelignatov.github.io', /^http:\/\/localhost:\d+$/,],
+    origin: ['https://michaelignatov.github.io/room-assets/', /^http:\/\/localhost:\d+$/,],
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: false,
   })
