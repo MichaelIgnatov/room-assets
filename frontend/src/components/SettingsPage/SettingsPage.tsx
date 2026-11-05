@@ -1,60 +1,95 @@
-import { Box, Typography, Avatar, Button, Switch, FormControlLabel, Divider, Stack, TextField, alpha } from "@mui/material";
+import { Box, Typography, Avatar, Button, Switch, FormControlLabel, Divider, Stack, TextField, Alert, CircularProgress, alpha } from "@mui/material";
 import { LightModeOutlined, DarkModeOutlined, SettingsBrightnessOutlined, LockOutlined, NotificationsOutlined, LogoutOutlined } from "@mui/icons-material";
-import { useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../../context/auth"; 
 import { useAppTheme } from "../../context/ThemeContext";
+import { changePasswordRequest } from "../../api/authApi";
+import { getErrorMessage } from "../../api/errors";
+import {
+  fetchNotificationSettings,
+  updateNotificationSettings,
+  type NotificationSettingsDto,
+} from "../../api/notificationsApi";
 import { getInitials } from "../Header/header.utils";
 import styles from "./SettingsPage.module.css";
 
+interface FormResult {
+  severity: "success" | "error";
+  text: string;
+}
+
 export function SettingsPage() {
-  // Вытаскиваем метод signOut из контекста
-  const { user, signOut } = useAuth(); 
+  const { user, isAdmin, signOut } = useAuth(); 
   const { themeMode, setThemeMode } = useAppTheme();
-  
-  const [notifyBooking, setNotifyBooking] = useState(true);
-  const [notifyEmail, setNotifyEmail] = useState(false);
-  
-  // Стейты для смены пароля
-  const [password, setPassword] = useState("");
-  const [submittingPassword, setSubmittingPassword] = useState(false);
 
-  const initials = user?.name ? getInitials(user.name) : "??";
+  // Настройки уведомлений хранятся на сервере (GET/PATCH /api/notifications/settings)
+  const [settings, setSettings] = useState<NotificationSettingsDto | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
 
-  // Обработчик обновления пароля
-  const handleChangePassword = async () => {
-    if (!password.trim()) {
-      alert("Пароль не может быть пустым");
-      return;
-    }
-    if (password.length < 6) {
-      alert("Пароль должен быть не менее 6 символов");
-      return;
-    }
+  // Смена пароля (POST /api/auth/change-password)
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordResult, setPasswordResult] = useState<FormResult | null>(null);
 
-    setSubmittingPassword(true);
-    try {
-      const token = localStorage.getItem("rb:token");
-      const response = await fetch("/api/auth/change-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ password }),
-      });
+  const displayName = user?.name || user?.email || "";
+  const initials = displayName ? getInitials(displayName) : "??";
 
-      if (response.ok) {
-        alert("Пароль успешно обновлен!");
-        setPassword("");
-      } else {
-        const data = await response.json();
-        alert(data.message || "Ошибка при смене пароля");
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const data = await fetchNotificationSettings();
+        if (active) setSettings(data);
+      } catch (e) {
+        if (active) setSettingsError(getErrorMessage(e, "Не удалось загрузить настройки уведомлений"));
       }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleToggle = async (key: keyof NotificationSettingsDto, checked: boolean) => {
+    if (!settings) return;
+    const previous = settings;
+    const patch: Partial<NotificationSettingsDto> =
+      key === "notifyBooking" ? { notifyBooking: checked } : { notifyEmail: checked };
+
+    // Оптимистичное обновление: при ошибке возвращаем прежнее значение
+    setSettings({ ...settings, ...patch });
+    setSettingsError(null);
+    try {
+      setSettings(await updateNotificationSettings(patch));
+    } catch (e) {
+      setSettings(previous);
+      setSettingsError(getErrorMessage(e, "Не удалось сохранить настройку"));
+    }
+  };
+
+  const handlePasswordSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setPasswordResult(null);
+
+    if (currentPassword === "") {
+      setPasswordResult({ severity: "error", text: "Введите текущий пароль" });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordResult({ severity: "error", text: "Новый пароль должен быть не короче 6 символов" });
+      return;
+    }
+
+    setPasswordBusy(true);
+    try {
+      await changePasswordRequest(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setPasswordResult({ severity: "success", text: "Пароль успешно обновлён" });
     } catch (err) {
-      console.error(err);
-      alert("Не удалось связаться с сервером");
+      setPasswordResult({ severity: "error", text: getErrorMessage(err, "Не удалось обновить пароль") });
     } finally {
-      setSubmittingPassword(false);
+      setPasswordBusy(false);
     }
   };
 
@@ -72,21 +107,22 @@ export function SettingsPage() {
         </Typography>
         
         <Box className={styles.profileRow}>
+          {/* Динамический аватар */}
           <Avatar sx={{ width: 72, height: 72, bgcolor: "primary.main", color: "primary.contrastText", fontSize: 24, fontWeight: 600 }}>
             {initials}
           </Avatar>
           
           <Box className={styles.profileInfo}>
+            {/* Имя пользователя */}
             <Typography variant="h6" sx={{ fontWeight: 600, color: "text.primary" }}>
               {user?.name || "Имя не указано"}
             </Typography>
-            {/* Выводим реальный Email из базы данных */}
+            {/* Email из профиля */}
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              {user?.email || "email@example.com"}
+              {user?.email ?? ""}
             </Typography>
-            {/* Выводим реальную роль из базы данных */}
             <Typography variant="caption" sx={{ mt: 0.5, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12), color: "primary.main", px: 1.5, py: 0.5, borderRadius: 1, fontWeight: 600, alignSelf: "flex-start" }}>
-              Роль: {user?.role === "ADMIN" ? "Администратор" : "Пользователь"}
+              Роль: {isAdmin ? "Администратор" : "Пользователь"}
             </Typography>
           </Box>
         </Box>
@@ -147,19 +183,27 @@ export function SettingsPage() {
           </Typography>
         </Stack>
         <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
-          Настройте каналы получения системных предупреждений и напоминаний о бронировании.
+          Настройте, какие уведомления вы хотите получать о своих бронированиях.
         </Typography>
 
-        <Stack spacing={1}>
-          <FormControlLabel
-            control={<Switch checked={notifyBooking} onChange={(e) => setNotifyBooking(e.target.checked)} color="primary" size="small" />}
-            label={<Typography variant="body2">Напоминать о начале бронирования за 15 минут</Typography>}
-          />
-          <FormControlLabel
-            control={<Switch checked={notifyEmail} onChange={(e) => setNotifyEmail(e.target.checked)} color="primary" size="small" />}
-            label={<Typography variant="body2">Получать отчёты и уведомления на почту</Typography>}
-          />
-        </Stack>
+        {settingsError && <Alert severity="error" sx={{ mb: 2 }}>{settingsError}</Alert>}
+
+        {settings === null && !settingsError ? (
+          <CircularProgress size={22} />
+        ) : (
+          <Stack spacing={1}>
+            <FormControlLabel
+              disabled={settings === null}
+              control={<Switch checked={settings?.notifyBooking ?? false} onChange={(e) => void handleToggle("notifyBooking", e.target.checked)} color="primary" size="small" />}
+              label={<Typography variant="body2">Уведомлять о создании, изменении и отмене бронирований</Typography>}
+            />
+            <FormControlLabel
+              disabled={settings === null}
+              control={<Switch checked={settings?.notifyEmail ?? false} onChange={(e) => void handleToggle("notifyEmail", e.target.checked)} color="primary" size="small" />}
+              label={<Typography variant="body2">Дублировать уведомления на почту {user?.email ?? ""}</Typography>}
+            />
+          </Stack>
+        )}
       </Box>
 
       <Divider sx={{ my: 3, borderColor: "divider" }} />
@@ -173,28 +217,39 @@ export function SettingsPage() {
           </Typography>
         </Stack>
         <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
-          Периодически меняйте пароль, чтобы предотвратить несанкционированный доступ к вашей учётной записи ресурсы.
+          Периодически меняйте пароль, чтобы предотвратить несанкционированный доступ к вашей учётной записи.
         </Typography>
 
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ maxWidth: 600, mt: 2 }}>
-          <TextField 
-            label="Новый пароль" 
-            type="password" 
-            size="small" 
-            fullWidth 
-            placeholder="••••••••" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={submittingPassword}
+        <Stack component="form" onSubmit={handlePasswordSubmit} spacing={2} sx={{ maxWidth: 400, mt: 2 }}>
+          {passwordResult && <Alert severity={passwordResult.severity}>{passwordResult.text}</Alert>}
+          <TextField
+            label="Текущий пароль"
+            type="password"
+            size="small"
+            fullWidth
+            autoComplete="current-password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
           />
-          <Button 
-            variant="contained" 
-            color="primary" 
-            sx={{ textTransform: "none", fontWeight: 600, height: 40, width: 180, minWidth: 180 }}
-            onClick={handleChangePassword}
-            disabled={submittingPassword}
+          <TextField
+            label="Новый пароль"
+            type="password"
+            size="small"
+            fullWidth
+            autoComplete="new-password"
+            placeholder="Не короче 6 символов"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+          <Button
+            type="submit"
+            variant="outlined"
+            color="primary"
+            disabled={passwordBusy}
+            startIcon={passwordBusy ? <CircularProgress size={18} color="inherit" /> : undefined}
+            sx={{ textTransform: "none", fontWeight: 600, height: 40, alignSelf: "flex-start", minWidth: 180 }}
           >
-            {submittingPassword ? "Обновление..." : "Обновить пароль"}
+            Обновить пароль
           </Button>
         </Stack>
       </Box>    
@@ -208,7 +263,7 @@ export function SettingsPage() {
           color="error" 
           startIcon={<LogoutOutlined />}
           sx={{ textTransform: "none", fontWeight: 600 }}
-          onClick={signOut} 
+          onClick={() => signOut()}
         >
           Выйти из аккаунта
         </Button>

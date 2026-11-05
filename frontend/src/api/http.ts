@@ -1,4 +1,5 @@
 import axios from "axios";
+import { clearToken, getToken, notifyUnauthorized } from "./tokenStorage";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -8,7 +9,28 @@ export const http = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// Эти запросы возвращают 401 при неверном логине/пароле — это не повод разлогинивать пользователя
+const CREDENTIAL_ENDPOINTS = ["/auth/login", "/auth/register"];
+
+// JWT из localStorage добавляется ко всем запросам автоматически
+http.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) config.headers.set("Authorization", `Bearer ${token}`);
+  return config;
+});
+
 http.interceptors.response.use(
   (r) => r,
-  (err) => { console.error("HTTP error:", err); throw err; }
+  (err: unknown) => {
+    if (axios.isAxiosError(err) && err.response?.status === 401) {
+      const url = err.config?.url ?? "";
+      if (!CREDENTIAL_ENDPOINTS.some((endpoint) => url.endsWith(endpoint))) {
+        // Токен просрочен или отозван: чистим его и возвращаем пользователя на экран входа
+        clearToken();
+        notifyUnauthorized();
+      }
+    }
+    console.error("HTTP error:", err);
+    return Promise.reject(err);
+  }
 );

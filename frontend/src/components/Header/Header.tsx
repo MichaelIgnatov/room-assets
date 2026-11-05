@@ -5,18 +5,17 @@ import type { NavItem } from "./header.types";
 import { DEFAULT_NAV } from "./Header.config";
 import { getInitials } from "./header.utils";
 import { useAuth } from "../../context/auth";
-import { DomainRounded, NotificationsNoneOutlined } from "@mui/icons-material";
+import { NotificationsBell } from "../NotificationsBell";
+import { DomainRounded } from "@mui/icons-material";
 
 export function Header({
   navItems = DEFAULT_NAV,
   activeNavId,
   onNavigate,
-  onBellClick,
 }: {
   navItems?: NavItem[];
   activeNavId: string;
   onNavigate: (id: string) => void;
-  onBellClick?: () => void;
 }) {
   const { user } = useAuth();
 
@@ -56,13 +55,11 @@ export function Header({
         <div className={s.spacer} />
 
         <div className={s.right}>
-          <button type="button" className={s.iconBtn} onClick={onBellClick} aria-label="Уведомления" title="Уведомления">
-            <NotificationsNoneOutlined />
-          </button>
+          <NotificationsBell />
 
           <Box
             className={s.avatar}
-            title={user?.name || "Гость"}
+            title={user?.name || user?.email || "Гость"}
             sx={{
               bgcolor: (theme) => (theme.palette.mode === "dark" ? theme.palette.grey[800] : "#cdd5df"),
               color: "text.primary",
@@ -71,7 +68,7 @@ export function Header({
             {user?.avatarUrl ? (
               <img src={user.avatarUrl} alt="" width={32} height={32} style={{ borderRadius: "999px" }} />
             ) : (
-              <span>{getInitials(user?.name)}</span>
+              <span>{getInitials(user?.name ?? user?.email)}</span>
             )}
           </Box>
         </div>

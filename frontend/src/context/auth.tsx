@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { fetchCurrentUser, logoutRequest } from "../api/authApi";
+import { clearToken, getToken, onUnauthorized, setToken } from "../api/tokenStorage";
 
 export interface UserBrief { 
   id?: string; 
@@ -11,82 +13,67 @@ export interface UserBrief {
 export interface AuthContextValue {
   user: UserBrief | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   loading: boolean;
+  // Сохраняет JWT в localStorage и загружает профиль (GET /api/auth/me). Бросает ошибку, если профиль не получен.
   signIn(token: string): Promise<void>;
-  signOut(): void | Promise<void>;
+  signOut(): void;
   update(patch: Partial<UserBrief>): void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const STORAGE_KEY = "rb:user";
-const TOKEN_KEY = "rb:token";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserBrief | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Функция для запроса профиля с реального бэкенда
-  const fetchProfile = async (token: string) => {
-    try {
-      const response = await fetch("/api/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data);
-      } else {
-        localStorage.removeItem(TOKEN_KEY);
-        setUser(null);
-      }
-    } catch {
-      localStorage.removeItem(TOKEN_KEY);
-      setUser(null);
-    }
-  };
+  const [loading, setLoading] = useState<boolean>(() => getToken() !== null);
 
   useEffect(() => {
-    const initAuth = async () => {
+    if (getToken() === null) return;
+
+    let cancelled = false;
+    (async () => {
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
-        if (token) {
-          await fetchProfile(token);
-        } else {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (raw) setUser(JSON.parse(raw));
-        }
+        const me = await fetchCurrentUser();
+        if (!cancelled) setUser(me);
       } catch {
-        localStorage.removeItem(STORAGE_KEY);
+        if (!cancelled) {
+          clearToken();
+          setUser(null);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
+    })();
+
+    return () => {
+      cancelled = true;
     };
-    initAuth();
   }, []);
 
-  useEffect(() => {
-    if (loading) return;
-    if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    else localStorage.removeItem(STORAGE_KEY);
-  }, [user, loading]);
+  useEffect(() => onUnauthorized(() => setUser(null)), []);
 
   // Метод входа
   const signIn = useCallback(async (token: string) => {
-    setLoading(true);
-    localStorage.setItem(TOKEN_KEY, token);
-    await fetchProfile(token);
-    setLoading(false);
+    setToken(token);
+    try {
+      setUser(await fetchCurrentUser());
+    } catch (err) {
+      clearToken();
+      setUser(null);
+      throw err;
+    }
   }, []);
 
-  // Метод выхода
   const signOut = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(STORAGE_KEY); // На всякий случай чистим и старый ключ
+    clearToken();
     setUser(null);
+    void logoutRequest().catch(() => undefined);
   }, []);
+
   const update = useCallback((p: Partial<UserBrief>) => setUser((u) => ({ ...(u ?? {}), ...p })), []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isAuthenticated: !!user, loading, signIn, signOut, update }),
+    () => ({ user, isAuthenticated: user !== null, isAdmin: user?.role === "ADMIN", loading, signIn, signOut, update }),
     [user, loading, signIn, signOut, update]
   );
 

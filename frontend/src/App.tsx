@@ -48,7 +48,6 @@ function App() {
       <Header
         activeNavId={active}
         onNavigate={setActive}    
-        onBellClick={() => console.log("bell")}
       />
 
       <Container maxWidth="lg">
