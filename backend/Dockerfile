@@ -35,4 +35,5 @@ COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 
 USER node
 EXPOSE 3000
-CMD ["sh","-c","node_modules/.bin/prisma migrate deploy && node dist/db/seed.js && node dist/server.js"]
+# CMD ["sh","-c","node_modules/.bin/prisma migrate deploy && node dist/db/seed.js && node dist/server.js"]
+CMD ["sh","-lc","npx prisma migrate deploy --schema=prisma/schema.prisma && node dist/server.js"]
