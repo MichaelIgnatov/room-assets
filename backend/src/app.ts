@@ -17,10 +17,26 @@ import bookingRoutes from './routes/bookings.js'
 import notificationRoutes from './routes/notifications.js'
 import { ValidationProblem, HttpError, ProblemDetails, Health } from './types.js'
 
-/**
- * Переводит известные ошибки Prisma в HTTP-статусы, чтобы клиент получал 404/409, а не 500.
- * Проверяем только поле code, поэтому не зависим от класса ошибки сгенерированного клиента.
- */
+const DEFAULT_CORS_ORIGINS = ['https://michaelignatov.github.io']
+
+function resolveCorsOrigins(): (string | RegExp)[] {
+  const configured = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value !== '')
+
+  const origins = new Set<string>()
+  for (const value of configured.length > 0 ? configured : DEFAULT_CORS_ORIGINS) {
+    try {
+      origins.add(new URL(value).origin)
+    } catch {
+    }
+  }
+
+  return [...origins, /^http:\/\/localhost:\d+$/]
+}
+
+
 function describePrismaError(err: unknown): { status: number; detail: string } | null {
   if (typeof err !== 'object' || err === null) return null
   const code = (err as { code?: unknown }).code
@@ -48,15 +64,14 @@ export async function buildApp() {
     },
   }).withTypeProvider<TypeBoxTypeProvider>()
 
-  // Инфраструктурные плагины
 
   await app.register(helmet)
 
-  // Для dev открываем localhost фронтенда, чтобы CORS-запросы из браузера проходили.
   await app.register(cors, {
-    origin: ['https://michaelignatov.github.io/room-assets/', /^http:\/\/localhost:\d+$/,],
+    origin: resolveCorsOrigins(),
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: false,
+    maxAge: 86400,
   })
 
   await app.register(rateLimit, {
@@ -107,7 +122,6 @@ export async function buildApp() {
     },
   })
 
-  // Авторизация по JWT: токен проверяется в обработчиках через requireUser/requireAdmin (lib/auth.ts)
   const { secret, generated } = resolveJwtSecret()
   if (generated) {
     app.log.warn('JWT_SECRET не задан: использован случайный секрет, токены перестанут действовать после перезапуска')
@@ -117,7 +131,6 @@ export async function buildApp() {
   await app.register(prismaPlugin)
   await app.register(mailerPlugin)
 
-  // Глобальные обработчики ошибок
 
   app.setErrorHandler<FastifyError | ValidationProblem | HttpError>((err, req, reply) => {
     const prismaProblem = describePrismaError(err)
@@ -126,7 +139,6 @@ export async function buildApp() {
 
     if (status >= 500) req.log.error(err)
 
-    // Внутренние сообщения о неожиданных сбоях клиенту не показываем
     const exposeMessage = status < 500 || err instanceof HttpError
     const detail = prismaProblem?.detail ?? (exposeMessage ? err.message : 'Internal Server Error')
 
@@ -152,7 +164,6 @@ export async function buildApp() {
     } satisfies ProblemDetails)
   })
 
-  // Служебные маршруты
 
   app.get(
     '/api/health',
@@ -184,7 +195,6 @@ export async function buildApp() {
     }
   )
 
-  // hide скрывает сам маршрут из генерируемой спецификации.
   app.get(
     '/openapi.json',
     { schema: { hide: true } },
@@ -193,7 +203,6 @@ export async function buildApp() {
     }
   )
 
-  // Маршруты API (каждый модуль — отдельный плагин)
 
   await app.register(authRoutes)
   await app.register(userRoutes)

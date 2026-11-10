@@ -28,7 +28,7 @@ function App() {
     setFilters(initialFilters);
   };
 
-  // 1. Если идёт проверка JWT-токена в localStorage — показываем загрузку
+
   if (loading) {
     return (
       <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "background.default" }}>
@@ -37,12 +37,10 @@ function App() {
     );
   }
 
-  // 2. Если токена нет или он невалиден — принудительно рендерим только страницу входа
   if (!isAuthenticated) {
     return <LoginPage />;
   }
 
-  // 3. Если пользователь авторизован — отдаём основное приложение
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default", display: "flex", flexDirection: "column" }}>
       <Header

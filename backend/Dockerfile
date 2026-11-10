@@ -17,8 +17,6 @@ WORKDIR /app
 ENV NODE_ENV=development
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Скрипт старта лежит вне /app, поэтому bind-mount исходников его не затирает.
-# sed убирает CRLF: при клонировании в Windows файл может получить \r\n и тогда shebang не сработает.
 COPY docker/dev-start.sh /usr/local/bin/dev-start.sh
 RUN sed -i 's/\r$//' /usr/local/bin/dev-start.sh && chmod +x /usr/local/bin/dev-start.sh
 EXPOSE 3000
@@ -35,5 +33,4 @@ COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 
 USER node
 EXPOSE 3000
-# CMD ["sh","-c","node_modules/.bin/prisma migrate deploy && node dist/db/seed.js && node dist/server.js"]
-CMD ["sh","-lc","npx prisma migrate deploy --schema=prisma/schema.prisma && node dist/server.js"]
+CMD ["sh","-c","node_modules/.bin/prisma migrate deploy || exit 1; node dist/db/seed.js || echo '[prod] seed завершился с ошибкой'; exec node dist/server.js"]
